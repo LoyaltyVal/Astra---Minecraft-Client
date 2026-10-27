@@ -515,32 +515,46 @@ public final class CosmeticsManager {
             u1 = 0f;
         }
         float imageW = tex.width * Math.abs(u1 - u0);
-        float wingW = 0.9f * settings.wingSize();
-        float wingH = wingW * tex.height / Math.max(1f, imageW);
+        float wingW = 0.8f * settings.wingSize();
+        float wingH = Math.min(wingW * 1.4f, wingW * tex.height / Math.max(1f, imageW));
 
-        float flap = (float) Math.sin(ageTicks * 0.12f * settings.flapSpeed());
-        float spread = sneaking ? 15f : 22f + flap * 18f;
-        float lift = sneaking ? 4f : 8f + flap * 6f;
+        // A slow, eased flap: wings rest mostly open and beat gently.
+        float t = ageTicks * 0.09f * settings.flapSpeed();
+        float flap = (float) Math.sin(t);
+        flap = flap * Math.abs(flap); // ease in/out so they linger at the ends of each beat
+        float spread = sneaking ? 18f : 34f + flap * 14f;   // swept back from the body
+        float lift = sneaking ? 6f : 14f + flap * 10f;      // raised above the shoulders
+        float tilt = sneaking ? 10f : 18f;                  // tips lean back
 
         GL11.glPushMatrix();
         if (sneaking) {
             GL11.glRotatef(28.6f, 1f, 0f, 0f); // match the body lean
+            GL11.glTranslatef(0f, 0.05f, 0f);
         }
-        GL11.glTranslatef(0f, 0.2f, 0.14f);
+        // Root between the shoulder blades, just behind the back (and behind the cape).
+        GL11.glTranslatef(0f, 0.22f, 0.16f);
 
         p.bindTexture(tex.handle);
+        // Smooth filtering: wing art is drawn much smaller than the image, so nearest-pixel
+        // sampling (Minecraft's default) makes jagged, shimmering edges.
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
         p.color(1f, 1f, 1f, 1f);
         p.blend(true);
         p.cull(false);
+        GL11.glEnable(GL11.GL_ALPHA_TEST);
+        GL11.glAlphaFunc(GL11.GL_GREATER, 0.05f);
 
         for (int side = -1; side <= 1; side += 2) {
             GL11.glPushMatrix();
-            GL11.glTranslatef(side * 0.04f, 0f, 0f);
+            GL11.glTranslatef(side * 0.06f, 0f, 0f);
             GL11.glRotatef(-side * spread, 0f, 1f, 0f);   // sweep the tip backwards
-            GL11.glRotatef(-side * lift, 0f, 0f, 1f);     // and slightly up
+            GL11.glRotatef(-side * lift, 0f, 0f, 1f);     // raise the tip
+            GL11.glRotatef(tilt, 1f, 0f, 0f);             // lean the top back
             float tip = side * wingW;
-            float top = -wingH * 0.6f;
-            float bottom = wingH * 0.4f;
+            // The wing's root sits at the top of the image third; most of it hangs below.
+            float top = -wingH * 0.45f;
+            float bottom = wingH * 0.55f;
             GL11.glBegin(GL11.GL_QUADS);
             GL11.glNormal3f(0f, 0f, 1f);
             GL11.glTexCoord2f(u0, 0f);
@@ -555,6 +569,7 @@ public final class CosmeticsManager {
             GL11.glPopMatrix();
         }
 
+        GL11.glAlphaFunc(GL11.GL_GREATER, 0.1f);
         p.cull(true);
         p.blend(false);
         GL11.glPopMatrix();

@@ -53,6 +53,8 @@ public final class CosmeticImages {
         if (isCapeTemplate(img)) {
             return img;
         }
+        // Art from image generators often has the cape floating on a plain backdrop: crop to it.
+        img = cropToContent(img);
         // One "cape pixel" = unit texture pixels; the cape face is 10 x 16 cape pixels.
         int unit = Math.max(1, Math.min(16, Math.min(img.getWidth() / 10, img.getHeight() / 16)));
         int faceW = 10 * unit;
@@ -74,11 +76,108 @@ public final class CosmeticImages {
         return tex;
     }
 
+    /**
+     * Crops away a plain border (any colour) around the artwork. Leaves the image alone when there's
+     * no clear border, or when cropping would leave almost nothing.
+     */
+    static BufferedImage cropToContent(BufferedImage img) {
+        int w = img.getWidth();
+        int h = img.getHeight();
+        int bg = borderColor(img);
+        int minX = w, minY = h, maxX = -1, maxY = -1;
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int rgb = img.getRGB(x, y);
+                if ((rgb >>> 24) > 16 && distance(rgb, bg) > 40) {
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                    if (y < minY) minY = y;
+                    if (y > maxY) maxY = y;
+                }
+            }
+        }
+        if (maxX < 0) {
+            return img;
+        }
+        int cw = maxX - minX + 1;
+        int ch = maxY - minY + 1;
+        if (cw < w / 8 || ch < h / 8 || (cw > w * 0.95 && ch > h * 0.95)) {
+            return img;
+        }
+        return img.getSubimage(minX, minY, cw, ch);
+    }
+
     // ------------------------------------------------------------------ wings
 
     public static BufferedImage toWingTexture(BufferedImage img) {
-        BufferedImage out = hasTransparency(img) ? img : removeBackground(img);
-        return trim(out);
+        BufferedImage out = hasTransparency(img) ? img : feather(removeBackground(img), borderColor(img));
+        return shrink(trim(out), 512);
+    }
+
+    /**
+     * Softens the cut-out edge: pixels next to the removed background that are still close to the
+     * background colour become partly transparent, so there's no hard white (or black) halo.
+     */
+    private static BufferedImage feather(BufferedImage img, int bg) {
+        int w = img.getWidth();
+        int h = img.getHeight();
+        int[] px = img.getRGB(0, 0, w, h, null, 0, w);
+        int[] out = px.clone();
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int i = y * w + x;
+                if ((px[i] >>> 24) == 0) {
+                    continue;
+                }
+                boolean edge = (x > 0 && (px[i - 1] >>> 24) == 0) || (x < w - 1 && (px[i + 1] >>> 24) == 0)
+                        || (y > 0 && (px[i - w] >>> 24) == 0) || (y < h - 1 && (px[i + w] >>> 24) == 0);
+                if (!edge) {
+                    continue;
+                }
+                // 48..160 colour distance from the background maps to 0..255 alpha.
+                int d = distance(px[i], bg);
+                int a = Math.max(0, Math.min(255, (d - 48) * 255 / 112));
+                out[i] = (a << 24) | (px[i] & 0xFFFFFF);
+            }
+        }
+        BufferedImage res = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        res.setRGB(0, 0, w, h, out, 0, w);
+        return res;
+    }
+
+    /**
+     * Scales down in halving steps with premultiplied alpha, which keeps edges smooth and avoids the
+     * dark fringe a plain bilinear resize of a transparent image leaves behind.
+     */
+    static BufferedImage shrink(BufferedImage img, int max) {
+        int w = img.getWidth();
+        int h = img.getHeight();
+        if (w <= max && h <= max) {
+            return img;
+        }
+        double scale = max / (double) Math.max(w, h);
+        int tw = Math.max(1, (int) Math.round(w * scale));
+        int th = Math.max(1, (int) Math.round(h * scale));
+        BufferedImage cur = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB_PRE);
+        Graphics2D g0 = cur.createGraphics();
+        g0.drawImage(img, 0, 0, null);
+        g0.dispose();
+        while (w > tw || h > th) {
+            w = Math.max(tw, w / 2);
+            h = Math.max(th, h / 2);
+            BufferedImage next = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB_PRE);
+            Graphics2D g = next.createGraphics();
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            g.drawImage(cur, 0, 0, w, h, null);
+            g.dispose();
+            cur = next;
+        }
+        BufferedImage out = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = out.createGraphics();
+        g.drawImage(cur, 0, 0, null);
+        g.dispose();
+        return out;
     }
 
     private static boolean hasTransparency(BufferedImage img) {

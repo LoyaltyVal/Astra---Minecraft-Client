@@ -17,7 +17,11 @@ public abstract class AbstractClientPlayerEntityMixin {
         return Astra.get().getCosmetics().getCapeTexture(((Entity) (Object) this).getUuid());
     }
 
-    @Inject(method = "getCapeId", at = @At("HEAD"), cancellable = true)
+    /*
+     * Careful: in Legacy Yarn the names are swapped. getCapeId() returns the SKIN and getSkinId()
+     * returns the CAPE (the cape renderer calls getSkinId()). So the cape is replaced here.
+     */
+    @Inject(method = "getSkinId()Lnet/minecraft/util/Identifier;", at = @At("HEAD"), cancellable = true)
     private void astra$cape(CallbackInfoReturnable<Identifier> cir) {
         Object cape = astra$capeTexture();
         if (cape != null) {

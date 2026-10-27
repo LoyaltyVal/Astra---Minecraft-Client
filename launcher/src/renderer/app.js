@@ -66,7 +66,7 @@ function showView(name) {
   }
 }
 
-document.querySelectorAll('.nav').forEach((btn) => {
+document.querySelectorAll('.nav[data-view]').forEach((btn) => {
   btn.addEventListener('click', () => showView(btn.dataset.view));
 });
 
@@ -373,6 +373,10 @@ function bindSettings(settings) {
   const hide = $('hide-on-launch');
   hide.checked = settings.hideOnLaunch;
   hide.addEventListener('change', () => astra.saveSettings({ hideOnLaunch: hide.checked }));
+
+  const share = $('share-minecraft');
+  share.checked = settings.shareMinecraft;
+  share.addEventListener('change', () => astra.saveSettings({ shareMinecraft: share.checked }));
 
   const server = $('server-url');
   server.value = settings.serverUrl;

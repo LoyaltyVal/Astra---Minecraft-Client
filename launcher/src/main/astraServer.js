@@ -92,7 +92,7 @@ async function signIn() {
   if (joined.status !== 204 && joined.status !== 200) {
     throw new Error(`Mojang didn't accept the sign-in (${joined.status}). Try signing out and in again.`);
   }
-  const { token, player } = await request('POST', '/api/auth/verify', { body: { username: mc.name, serverId } });
+  const { token, player } = await request('POST', '/api/auth/verify', { body: { username: mc.name, uuid, serverId } });
   writeSession(serverUrl(), uuid, token);
   return { token, player };
 }

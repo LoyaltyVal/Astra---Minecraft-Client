@@ -115,6 +115,10 @@ test('admin upload, grant, equip, rank and ban flow with permission checks', asy
   assert.strictEqual(up.status, 201, JSON.stringify(up.json));
   const id = up.json.cosmetic.id;
 
+  // Owners can wear anything they upload straight away.
+  const ownerWears = await call('POST', '/api/me/equip', { token: owner.token, body: { type: 'cape', id } });
+  assert.strictEqual(ownerWears.status, 200);
+
   // Alice can't equip it until it's given to her.
   const notOwned = await call('POST', '/api/me/equip', { token: alice.token, body: { type: 'cape', id } });
   assert.strictEqual(notOwned.status, 400);

@@ -115,7 +115,7 @@ function publicRoutes(router, ctx) {
   router.get('/admin', page('admin.html'));
   router.get('/player/:name', page('player.html'));
   router.get('/favicon.ico', page('assets/img/favicon.svg'));
-  router.get('/healthz', (req, res) => sendJson(res, 200, { ok: true }));
+  router.get('/healthz', (req, res) => sendJson(res, 200, { ok: true, server: 'astra', id: config.instanceId }));
 
   if (!fs.existsSync(config.publicDir)) throw new Error(`Website folder missing: ${config.publicDir}`);
 }

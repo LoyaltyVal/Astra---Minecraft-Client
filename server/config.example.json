@@ -1,6 +1,6 @@
 {
-  "port": 8080,
-  "publicUrl": "http://localhost:8080",
+  "port": 8787,
+  "publicUrl": "http://localhost:8787",
   "owners": ["YourMinecraftName"],
   "devAuth": false,
   "dataDir": "data",

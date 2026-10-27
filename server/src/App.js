@@ -22,6 +22,9 @@ const SECURITY_HEADERS = {
 class App {
   constructor(config, { fetchImpl = globalThis.fetch } = {}) {
     this.config = config;
+    // Lets index.js check that requests to this port really reach this server (see checkPort).
+    this.instanceId = require('crypto').randomBytes(8).toString('hex');
+    config.instanceId = this.instanceId;
     this.store = new Store(path.join(config.dataDir, 'db.json')).load();
     const players = new PlayerService(this.store, config);
     const cosmetics = new CosmeticService(this.store, config.dataDir);
@@ -59,7 +62,10 @@ class App {
 
   listen(port = this.config.port) {
     this.server = http.createServer((req, res) => this.handle(req, res));
-    return new Promise((resolve) => this.server.listen(port, () => resolve(this.server)));
+    return new Promise((resolve, reject) => {
+      this.server.once('error', reject);
+      this.server.listen(port, () => resolve(this.server));
+    });
   }
 
   async close() {

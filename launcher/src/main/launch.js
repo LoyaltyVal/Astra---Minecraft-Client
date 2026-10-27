@@ -8,6 +8,7 @@ const { ensureJava } = require('./java');
 const { ensureLoader } = require('./fabric');
 const { installMod } = require('./mods');
 const astraServer = require('./astraServer');
+const shared = require('./shared');
 
 let running = null;
 
@@ -45,11 +46,22 @@ async function launchGame(versionId, ui) {
   // Cosmetics server + your Astra session for the game. The token is kept out of the logs.
   ui.progress({ label: 'Connecting to Astra', current: 0, total: 1 });
   const astraArgs = await astraServer.gameArgs(ui.log);
-  const secret = (astraArgs.find((a) => a.startsWith('-Dastra.token=')) || '').slice('-Dastra.token='.length);
-  const log = (line) => ui.log(secret ? String(line).split(secret).join('********') : line);
+  // Keep both the Astra token and the Minecraft access token out of the logs.
+  const secrets = [
+    (astraArgs.find((a) => a.startsWith('-Dastra.token=')) || '').slice('-Dastra.token='.length),
+    authorization && authorization.access_token
+  ].filter((s) => s && s.length > 8);
+  const log = (line) => {
+    let text = String(line);
+    for (const s of secrets) text = text.split(s).join('********');
+    ui.log(text);
+  };
 
   const gameDirectory = paths.instanceDir(version.id);
   fs.mkdirSync(gameDirectory, { recursive: true });
+  // Settings, resource packs, screenshots and servers shared with the normal .minecraft folder.
+  const share = settings.shareMinecraft;
+  if (share) shared.prepare(gameDirectory, ui.log);
 
   const client = new Client();
   let started = false;
@@ -69,6 +81,7 @@ async function launchGame(versionId, ui) {
   });
   client.on('close', (code) => {
     running = null;
+    if (share) shared.save(gameDirectory, ui.log);
     ui.state('closed', { code });
   });
 

@@ -6,13 +6,17 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 
 const DEFAULTS = {
-  "port": 8080,
-  "publicUrl": "http://localhost:8080",
-  "owners": ["NameTagged"],
-  "devAuth": true,
-  "dataDir": "data",
-  "downloadUrl": ""
-}
+  port: 8787,
+  // The address players and the launcher use to reach this server (no trailing slash).
+  publicUrl: 'http://localhost:8787',
+  // Minecraft names or UUIDs that become Owner the first time they sign in.
+  owners: [],
+  // Skips Mojang's session check so you can test with offline accounts. Never enable on a public server.
+  devAuth: false,
+  dataDir: 'data',
+  // Where the website's Download buttons point (e.g. a GitHub Releases file). Empty = "coming soon".
+  downloadUrl: ''
+};
 
 /** Reads config.json (if present) and ASTRA_* environment variables. */
 function loadConfig() {

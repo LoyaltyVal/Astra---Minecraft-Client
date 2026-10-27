@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { can } = require('./Ranks');
 
 const TYPES = ['cape', 'wings'];
 const RARITIES = ['common', 'rare', 'epic', 'legendary'];
@@ -68,12 +69,18 @@ class CosmeticService {
 
   /** Everything a player can wear: free cosmetics plus what they were given. */
   ownedBy(player) {
-    return this.all({ includeHidden: true }).filter((c) => c.free || player.owned.includes(c.id));
+    const everything = this.hasAll(player);
+    return this.all({ includeHidden: true }).filter((c) => everything || c.free || player.owned.includes(c.id));
   }
 
   owns(player, id) {
     const c = this.get(id);
-    return Boolean(c) && (c.free || player.owned.includes(id));
+    return Boolean(c) && (this.hasAll(player) || c.free || player.owned.includes(id));
+  }
+
+  /** Owners and Admins (anyone who can manage cosmetics) can wear every cosmetic. */
+  hasAll(player) {
+    return can(player, 'cosmetics.manage');
   }
 
   imagePath(c) {

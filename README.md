@@ -84,6 +84,8 @@ Astra only includes visual and quality-of-life features. There's no reach, autoc
 | `%APPDATA%\.astra\instances\<version>` | Worlds, options, screenshots and Astra settings (`config/astra.json`) for each version |
 | `%APPDATA%\Astra Launcher\logs` | Launcher and game logs (also in the Logs tab) |
 
+Resource packs, screenshots, the server list and your settings are shared with your normal `.minecraft` folder (turn this off in **Settings → Share with .minecraft**). If `.minecraft` holds settings from a newer Minecraft version, only settings both versions understand (FOV, brightness, render distance, volume, resource packs and so on) are shared, so the official game's keybinds are never touched.
+
 Sign-in uses Microsoft's own page. Astra stores only a refresh token, encrypted with Windows' data protection (DPAPI), never your password.
 
 ## Cosmetics
@@ -118,11 +120,11 @@ The server in [`server/`](server) is the website, the API the client and app tal
 ```bash
 cd server
 cp config.example.json config.json   # then put your Minecraft name in "owners"
-npm start                            # http://localhost:8080
+npm start                            # http://localhost:8787
 npm test                             # API tests
 ```
 
-1. Start the server, then open the Astra app, go to **Settings → Astra server** and enter its address (the default is `http://localhost:8080`).
+1. Start the server, then open the Astra app, go to **Settings → Astra server** and enter its address (the default is `http://localhost:8787`).
 2. Launch once. You're signed in with your Minecraft account and, because your name is in `owners`, you're the **Owner**.
 3. Click **Admin** in the app's sidebar. The admin panel opens in your browser, already signed in.
 
@@ -143,7 +145,7 @@ Every staff action is recorded in the admin panel's **Activity** tab. Ranks and 
 
 | Key | Env | Meaning |
 |---|---|---|
-| `port` | `PORT` | Port to listen on (default 8080) |
+| `port` | `PORT` | Port to listen on (default 8787) |
 | `publicUrl` | `ASTRA_PUBLIC_URL` | The address players use, e.g. `https://astra.example.com` |
 | `owners` | `ASTRA_OWNERS` | Minecraft names that are always Owner (comma-separated in the env var) |
 | `downloadUrl` | `ASTRA_DOWNLOAD_URL` | Where the website's Download buttons point (e.g. a GitHub Release) |
