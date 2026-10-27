@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' https://mc-heads.net data:; style-src 'self'; script-src 'self'">
+  <title>Astra Launcher</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="sky" aria-hidden="true"></div>
+
+  <header class="titlebar">
+    <div class="brand">
+      <svg class="star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5l2.6 7.9 7.9 2.6-7.9 2.6L12 22.5l-2.6-7.9L1.5 12l7.9-2.6z"/></svg>
+      <span>ASTRA</span>
+    </div>
+    <div class="window-controls">
+      <button id="win-min" title="Minimize" aria-label="Minimize"><svg viewBox="0 0 12 12"><path d="M2 6h8"/></svg></button>
+      <button id="win-max" title="Maximize" aria-label="Maximize"><svg viewBox="0 0 12 12"><rect x="2.5" y="2.5" width="7" height="7"/></svg></button>
+      <button id="win-close" class="close" title="Close" aria-label="Close"><svg viewBox="0 0 12 12"><path d="M3 3l6 6M9 3l-6 6"/></svg></button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="sidebar" aria-label="Sections">
+      <button class="nav active" data-view="home" title="Play">
+        <svg viewBox="0 0 24 24" class="fill"><path d="M7 4.5v15l12-7.5z"/></svg>
+        <span>Play</span>
+      </button>
+      <button class="nav" data-view="cosmetics" title="Cosmetics">
+        <svg viewBox="0 0 24 24"><path d="M8 3l-5 3 2 5 2-1v11h10V10l2 1 2-5-5-3c-.5 1.6-2.1 2.6-4 2.6S8.5 4.6 8 3z"/></svg>
+        <span>Cosmetics</span>
+      </button>
+      <button class="nav" data-view="logs" title="Logs">
+        <svg viewBox="0 0 24 24"><path d="M5 5h14M5 10h14M5 15h9M5 20h6"/></svg>
+        <span>Logs</span>
+      </button>
+      <div class="nav-spacer"></div>
+      <button class="nav" data-view="settings" title="Settings">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg>
+        <span>Settings</span>
+      </button>
+    </nav>
+
+    <main>
+      <!-- PLAY -->
+      <section class="view active" id="view-home">
+        <div class="home-grid">
+          <div class="hero">
+            <p class="eyebrow">PvP client for Minecraft 1.8.9 &amp; 1.7.10</p>
+            <h1>Astra Client</h1>
+            <p class="lede">18 mods, a drag-and-drop HUD editor and your own capes and wings.
+              Press <kbd>Right Shift</kbd> in game.</p>
+
+            <div class="versions" id="versions" role="radiogroup" aria-label="Minecraft version"></div>
+          </div>
+
+          <aside class="card news" aria-label="What's new">
+            <p class="card-eyebrow">What's new &middot; 0.2</p>
+            <ul>
+              <li><b>Scoreboard</b>, <b>Armor Status</b>, <b>Potion Effects</b> and <b>Boss Bar</b>, all movable</li>
+              <li><b>Direction HUD</b>, <b>Ping</b> and <b>Speed</b></li>
+              <li><b>Capes &amp; wings</b> from your own images</li>
+              <li>A cleaner in-game menu with a Cosmetics page</li>
+            </ul>
+          </aside>
+        </div>
+
+        <div class="playbar">
+          <div class="account" id="account">
+            <img id="account-head" alt="" width="40" height="40" hidden>
+            <div class="account-placeholder" id="account-placeholder" aria-hidden="true"></div>
+            <div class="account-text">
+              <span class="account-name" id="account-name">Not signed in</span>
+              <button class="link" id="account-action">Sign in with Microsoft</button>
+            </div>
+          </div>
+
+          <div class="launch-area">
+            <div class="status" id="status" aria-live="polite">Ready</div>
+            <button class="launch" id="launch">
+              <span class="launch-fill" id="launch-fill"></span>
+              <span class="launch-label" id="launch-label">Launch</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- COSMETICS -->
+      <section class="view" id="view-cosmetics">
+        <div class="view-head">
+          <div>
+            <h2>Cosmetics</h2>
+            <p class="sub">Click to equip. Changes show up in game within a couple of seconds.</p>
+          </div>
+          <div class="actions">
+            <button class="ghost" id="cos-folder">Open folder</button>
+            <button class="primary" id="cos-import">Add images</button>
+          </div>
+        </div>
+
+        <div class="segmented" role="tablist" aria-label="Cosmetic type">
+          <button role="tab" class="seg active" data-type="cape" aria-selected="true">Capes</button>
+          <button role="tab" class="seg" data-type="wings" aria-selected="false">Wings</button>
+        </div>
+
+        <p class="hint" id="cos-hint"></p>
+        <div class="cos-grid" id="cos-grid"></div>
+      </section>
+
+      <!-- LOGS -->
+      <section class="view" id="view-logs">
+        <div class="view-head">
+          <div>
+            <h2>Game logs</h2>
+            <p class="sub">Output from the launcher and Minecraft. Saved to a log file too.</p>
+          </div>
+          <div class="actions">
+            <button class="ghost" id="logs-open">Open log folder</button>
+            <button class="ghost" id="logs-copy">Copy</button>
+            <button class="ghost" id="logs-clear">Clear</button>
+          </div>
+        </div>
+        <pre class="logs" id="logs" tabindex="0">Logs from the launcher and Minecraft appear here.</pre>
+      </section>
+
+      <!-- SETTINGS -->
+      <section class="view" id="view-settings">
+        <div class="view-head"><div><h2>Settings</h2></div></div>
+
+        <div class="settings">
+          <div class="setting">
+            <div>
+              <label for="memory">Memory</label>
+              <p>RAM given to Minecraft. 3 GB suits most players; more rarely helps on 1.8.9.</p>
+            </div>
+            <div class="range">
+              <input type="range" id="memory" min="1" max="12" step="1">
+              <output id="memory-value" for="memory">3 GB</output>
+            </div>
+          </div>
+
+          <div class="setting">
+            <div>
+              <label for="hide-on-launch">Hide launcher while playing</label>
+              <p>The launcher comes back when you close the game.</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="hide-on-launch">
+              <span></span>
+            </label>
+          </div>
+
+          <div class="setting">
+            <div>
+              <label for="java-path">Java path</label>
+              <p>Leave empty and Astra downloads Mojang's Java 8 automatically.</p>
+            </div>
+            <input type="text" id="java-path" placeholder="Automatic (recommended)" spellcheck="false">
+          </div>
+
+          <div class="setting">
+            <div>
+              <label>Game folder</label>
+              <p id="game-folder">Worlds, screenshots and options for each version.</p>
+            </div>
+            <button class="ghost" id="open-folder">Open folder</button>
+          </div>
+        </div>
+
+        <p class="footnote" id="app-version"></p>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="alert" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

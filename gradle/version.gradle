@@ -1,0 +1,52 @@
+// Shared build logic, applied by every versions/<mc>/build.gradle.
+// Each version folder has its own gradle.properties with minecraft_version and yarn_build.
+
+version = "${rootProject.mod_version}+${project.minecraft_version}"
+group = rootProject.maven_group
+
+base {
+    archivesName = rootProject.archives_base_name
+}
+
+// Version-independent code (modules, HUD, menus, config) lives in /common and is
+// compiled into every version. Only platform/ and mixin/ differ per version.
+sourceSets {
+    main {
+        java.srcDir rootProject.file("common/src/main/java")
+        resources.srcDir rootProject.file("common/src/main/resources")
+    }
+}
+
+repositories {
+    // Loom adds Mojang, Fabric and Legacy Fabric repositories automatically.
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings(legacy.yarn(project.minecraft_version, project.yarn_build))
+    modImplementation "net.fabricmc:fabric-loader:${rootProject.loader_version}"
+}
+
+// Loom's runClient task uses versions/<mc>/run as the game folder, so the two
+// versions keep separate worlds and options.
+
+processResources {
+    inputs.property "version", project.version
+    inputs.property "minecraft_version", project.minecraft_version
+
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version, "minecraft_version": project.minecraft_version
+    }
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.encoding = "UTF-8"
+    if (JavaVersion.current().isJava9Compatible()) {
+        it.options.release = 8
+    }
+}

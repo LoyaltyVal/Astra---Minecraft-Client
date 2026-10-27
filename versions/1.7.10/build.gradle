@@ -1,0 +1,6 @@
+plugins {
+    id "net.fabricmc.fabric-loom-remap"
+    id "legacy-looming"
+}
+
+apply from: rootProject.file("gradle/version.gradle")

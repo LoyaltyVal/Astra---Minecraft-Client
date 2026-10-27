@@ -1,0 +1,57 @@
+{
+  "name": "astra-launcher",
+  "productName": "Astra Launcher",
+  "version": "0.2.0",
+  "description": "Launcher for Astra Client (Minecraft 1.8.9 and 1.7.10).",
+  "main": "src/main/main.js",
+  "author": "ramiz",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "mods": "node scripts/copy-mods.js",
+    "dist": "node scripts/copy-mods.js && electron-builder --win"
+  },
+  "dependencies": {
+    "minecraft-launcher-core": "^3.17.0",
+    "msmc": "^5.0.5"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "dev.astra.launcher",
+    "productName": "Astra Launcher",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "build/icon.*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "mods",
+        "to": "mods"
+      },
+      {
+        "from": "resources/cosmetics",
+        "to": "cosmetics"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "Astra Launcher",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
+    }
+  }
+}

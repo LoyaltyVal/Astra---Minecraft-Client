@@ -1,0 +1,5 @@
+// Loom is declared once here (apply false) so both version subprojects share one plugin classloader.
+plugins {
+    id "net.fabricmc.fabric-loom-remap" apply false
+    id "legacy-looming" apply false
+}

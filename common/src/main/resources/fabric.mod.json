@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "astra",
+  "version": "${version}",
+  "name": "Astra Client",
+  "description": "A PvP client with HUD mods, zoom, toggle sprint and a draggable HUD editor.",
+  "authors": ["ramiz"],
+  "license": "All-Rights-Reserved",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["dev.astra.client.Astra"]
+  },
+  "mixins": ["astra.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "minecraft": "${minecraft_version}"
+  }
+}

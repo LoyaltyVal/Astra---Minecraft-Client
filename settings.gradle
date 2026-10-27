@@ -1,0 +1,24 @@
+pluginManagement {
+    repositories {
+        maven {
+            name = "Fabric"
+            url = "https://maven.fabricmc.net/"
+        }
+        maven {
+            name = "Legacy Fabric"
+            url = "https://maven.legacyfabric.net/"
+        }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    plugins {
+        id "net.fabricmc.fabric-loom-remap" version "${loom_version}"
+        id "legacy-looming" version "${loom_version}" // must match fabric-loom's version
+    }
+}
+
+rootProject.name = "astra-client"
+
+// One subproject per Minecraft version. They all share the code in /common.
+include "versions:1.8.9"
+include "versions:1.7.10"
