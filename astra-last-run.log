@@ -1,0 +1,194 @@
+Astra installer - 2026-10-27T13:35:53.029Z
+[Astra] Using Java 21 from C:\Program Files\Java\jdk-21
+[Astra] Building the Minecraft client (this takes a while the first time)...
+Starting a Gradle Daemon, 1 incompatible and 1 stopped Daemons could not be reused, use --status for details
+
+> Configure project :versions:1.7.10
+Fabric Loom: 1.16.3
+Legacy Looming: 1.16.1
+
+> Configure project :versions:1.8.9
+Fabric Loom: 1.16.3
+Legacy Looming: 1.16.1
+
+> Task :versions:1.7.10:compileJava UP-TO-DATE
+> Task :versions:1.7.10:processResources UP-TO-DATE
+> Task :versions:1.7.10:classes UP-TO-DATE
+> Task :versions:1.7.10:jar
+> Task :versions:1.7.10:processIncludeJars UP-TO-DATE
+> Task :versions:1.7.10:compileTestJava NO-SOURCE
+> Task :versions:1.7.10:processTestResources NO-SOURCE
+> Task :versions:1.7.10:testClasses UP-TO-DATE
+> Task :versions:1.7.10:test NO-SOURCE
+> Task :versions:1.7.10:validateAccessWidener NO-SOURCE
+> Task :versions:1.7.10:check UP-TO-DATE
+> Task :versions:1.8.9:compileJava UP-TO-DATE
+> Task :versions:1.8.9:processResources UP-TO-DATE
+> Task :versions:1.8.9:classes UP-TO-DATE
+> Task :versions:1.8.9:jar
+> Task :versions:1.8.9:processIncludeJars UP-TO-DATE
+> Task :versions:1.8.9:compileTestJava NO-SOURCE
+> Task :versions:1.8.9:processTestResources NO-SOURCE
+> Task :versions:1.8.9:testClasses UP-TO-DATE
+> Task :versions:1.8.9:test NO-SOURCE
+> Task :versions:1.8.9:validateAccessWidener NO-SOURCE
+> Task :versions:1.8.9:check UP-TO-DATE
+> Task :versions:1.7.10:remapJar
+> Task :versions:1.7.10:remapSourcesJar SKIPPED
+> Task :versions:1.7.10:assemble
+> Task :versions:1.7.10:build
+> Task :versions:1.8.9:remapJar
+> Task :versions:1.8.9:remapSourcesJar SKIPPED
+> Task :versions:1.8.9:assemble
+> Task :versions:1.8.9:build
+
+BUILD SUCCESSFUL in 13s
+10 actionable tasks: 4 executed, 6 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.4.0/userguide/configuration_cache_enabling.html
+[Astra] Client built.
+[Astra] Note: the installer will point players at http://localhost:8787. Set "publicUrl" in server/config.json to your hosted address first if friends will use it.
+[Astra] Packing the Windows installer...
+
+> astra-launcher@0.3.0 dist
+> node scripts/copy-mods.js && electron-builder --win
+
+✓ 1.8.9: astra-0.3.0+1.8.9.jar
+✓ 1.7.10: astra-0.3.0+1.7.10.jar
+  • electron-builder  version=25.1.8 os=10.0.19045
+  • loaded configuration  file=package.json ("build" field)
+  • executing @electron/rebuild  electronVersion=33.4.11 arch=x64 buildFromSource=false appDir=./
+  • installing native dependencies  arch=x64
+  • completed installing native dependencies
+  • packaging       platform=win32 arch=x64 electron=33.4.11 appOutDir=dist\win-unpacked
+  • downloading     url=https://github.com/electron/electron/releases/download/v33.4.11/electron-v33.4.11-win32-x64.zip size=115 MB parts=8
+  • downloaded      url=https://github.com/electron/electron/releases/download/v33.4.11/electron-v33.4.11-win32-x64.zip duration=3.003s
+  • updating asar integrity executable resource  executablePath=dist\win-unpacked\Astra Launcher.exe
+  • downloading     url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z size=5.6 MB parts=1
+  • downloaded      url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z duration=1.564s
+  ⨯ cannot execute  cause=exit status 2
+                    out=
+    7-Zip (a) 21.07 (x64) : Copyright (c) 1999-2021 Igor Pavlov : 2021-12-26
+    
+    Scanning the drive for archives:
+    1 file, 5635384 bytes (5504 KiB)
+    
+    Extracting archive: C:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign\761510771.7z
+    --
+    Path = C:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign\761510771.7z
+    Type = 7z
+    Physical Size = 5635384
+    Headers Size = 1492
+    Method = LZMA2:24m LZMA:20 BCJ2
+    Solid = +
+    Blocks = 2
+    
+    
+    Sub items Errors: 2
+    
+    Archives with Errors: 1
+    
+    Sub items Errors: 2
+    
+                    errorOut=ERROR: Cannot create symbolic link : A required privilege is not held by the client. : C:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign\761510771\darwin\10.12\lib\libcrypto.dylib
+    ERROR: Cannot create symbolic link : A required privilege is not held by the client. : C:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign\761510771\darwin\10.12\lib\libssl.dylib
+    
+                    command='C:\Users\ramiz\Documents\GitHub\Astra---Minecraft-Client\launcher\node_modules\7zip-bin\win\x64\7za.exe' x -snld -bd 'C:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign\761510771.7z' '-oC:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign\761510771'
+                    workingDir=C:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign
+  • Above command failed, retrying 3 more times
+  • downloading     url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z size=5.6 MB parts=1
+  • downloaded      url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z duration=1.387s
+  ⨯ cannot execute  cause=exit status 2
+                    out=
+    7-Zip (a) 21.07 (x64) : Copyright (c) 1999-2021 Igor Pavlov : 2021-12-26
+    
+    Scanning the drive for archives:
+    1 file, 5635384 bytes (5504 KiB)
+    
+    Extracting archive: C:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign\985592027.7z
+    --
+    Path = C:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign\985592027.7z
+    Type = 7z
+    Physical Size = 5635384
+    Headers Size = 1492
+    Method = LZMA2:24m LZMA:20 BCJ2
+    Solid = +
+    Blocks = 2
+    
+    
+    Sub items Errors: 2
+    
+    Archives with Errors: 1
+    
+    Sub items Errors: 2
+    
+                    errorOut=ERROR: Cannot create symbolic link : A required privilege is not held by the client. : C:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign\985592027\darwin\10.12\lib\libcrypto.dylib
+    ERROR: Cannot create symbolic link : A required privilege is not held by the client. : C:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign\985592027\darwin\10.12\lib\libssl.dylib
+    
+                    command='C:\Users\ramiz\Documents\GitHub\Astra---Minecraft-Client\launcher\node_modules\7zip-bin\win\x64\7za.exe' x -snld -bd 'C:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign\985592027.7z' '-oC:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign\985592027'
+                    workingDir=C:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign
+  • Above command failed, retrying 3 more times
+  • downloading     url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z size=5.6 MB parts=1
+  • downloaded      url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z duration=1.438s
+  ⨯ cannot execute  cause=exit status 2
+                    out=
+    7-Zip (a) 21.07 (x64) : Copyright (c) 1999-2021 Igor Pavlov : 2021-12-26
+    
+    Scanning the drive for archives:
+    1 file, 5635384 bytes (5504 KiB)
+    
+    Extracting archive: C:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign\323025719.7z
+    --
+    Path = C:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign\323025719.7z
+    Type = 7z
+    Physical Size = 5635384
+    Headers Size = 1492
+    Method = LZMA2:24m LZMA:20 BCJ2
+    Solid = +
+    Blocks = 2
+    
+    
+    Sub items Errors: 2
+    
+    Archives with Errors: 1
+    
+    Sub items Errors: 2
+    
+                    errorOut=ERROR: Cannot create symbolic link : A required privilege is not held by the client. : C:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign\323025719\darwin\10.12\lib\libcrypto.dylib
+    ERROR: Cannot create symbolic link : A required privilege is not held by the client. : C:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign\323025719\darwin\10.12\lib\libssl.dylib
+    
+                    command='C:\Users\ramiz\Documents\GitHub\Astra---Minecraft-Client\launcher\node_modules\7zip-bin\win\x64\7za.exe' x -snld -bd 'C:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign\323025719.7z' '-oC:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign\323025719'
+                    workingDir=C:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign
+  • Above command failed, retrying 3 more times
+  • downloading     url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z size=5.6 MB parts=1
+  • downloaded      url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z duration=1.418s
+  ⨯ cannot execute  cause=exit status 2
+                    out=
+    7-Zip (a) 21.07 (x64) : Copyright (c) 1999-2021 Igor Pavlov : 2021-12-26
+    
+    Scanning the drive for archives:
+    1 file, 5635384 bytes (5504 KiB)
+    
+    Extracting archive: C:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign\052573367.7z
+    --
+    Path = C:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign\052573367.7z
+    Type = 7z
+    Physical Size = 5635384
+    Headers Size = 1492
+    Method = LZMA2:24m LZMA:20 BCJ2
+    Solid = +
+    Blocks = 2
+    
+    
+    Sub items Errors: 2
+    
+    Archives with Errors: 1
+    
+    Sub items Errors: 2
+    
+                    errorOut=ERROR: Cannot create symbolic link : A required privilege is not held by the client. : C:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign\052573367\darwin\10.12\lib\libcrypto.dylib
+    ERROR: Cannot create symbolic link : A required privilege is not held by the client. : C:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign\052573367\darwin\10.12\lib\libssl.dylib
+    
+                    command='C:\Users\ramiz\Documents\GitHub\Astra---Minecraft-Client\launcher\node_modules\7zip-bin\win\x64\7za.exe' x -snld -bd 'C:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign\052573367.7z' '-oC:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign\052573367'
+                    workingDir=C:\Users\ramiz\AppData\Local\electron-builder\Cache\winCodeSign
+  • Above command failed, retrying 3 more times
+[Astra] ERROR: Packing the Windows installer... failed (exit code 1). Scroll up for the error.
