@@ -95,6 +95,8 @@ class PlayersPanel {
         el('h2', {}, p.name),
         el('p', { class: 'muted small' },
           p.joinedAt ? `Joined ${timeAgo(p.joinedAt)} · last seen ${timeAgo(p.lastSeen)}` : 'Added by staff, hasn\'t signed in yet'),
+        p.playing ? el('p', { class: 'small', style: { color: 'var(--mint)' } },
+          p.playing.server ? `In game on ${p.playing.server} (${p.playing.version})` : `In game (${p.playing.version}), server hidden`) : null,
         el('p', { class: 'mono small muted' }, p.uuid)),
       p.joinedAt ? el('a', { class: 'btn btn-quiet btn-sm', href: `/player/${encodeURIComponent(p.name)}`, target: '_blank' }, 'Profile') : null);
 

@@ -35,6 +35,7 @@ export class AstraApi {
   stats() { return this.get('/api/stats'); }
   cosmetics(type) { return this.get('/api/cosmetics' + (type ? `?type=${type}` : '')); }
   team() { return this.get('/api/team'); }
+  online() { return this.get('/api/online'); }
   profile(name) { return this.get(`/api/profile/${encodeURIComponent(name)}`); }
 
   /** The signed-in player, or null when nobody is signed in on this browser. */

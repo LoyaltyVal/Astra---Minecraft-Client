@@ -140,6 +140,8 @@ public final class CosmeticsManager {
     private volatile String status;
     private volatile boolean signedIn;
     private int ticks;
+    private String reportedPresence = "";
+    private int lastPresenceTick = -100000;
 
     /**
      * @param apiUrl the Astra server, or null when the game wasn't started by the Astra app
@@ -229,6 +231,7 @@ public final class CosmeticsManager {
         if (ticks % ACCOUNT_EVERY == 0) {
             refresh();
         }
+        reportPresence();
         if (ticks % LOOKUP_EVERY != 0 || lookupBusy.get()) {
             return;
         }
@@ -262,6 +265,43 @@ public final class CosmeticsManager {
                     lookup(wanted);
                 } finally {
                     lookupBusy.set(false);
+                }
+            }
+        });
+    }
+
+    /**
+     * Tells the Astra server where you are (for the website's Players page): right away when it
+     * changes, and every 30 seconds while in game so you show as online.
+     */
+    private void reportPresence() {
+        if (!signedIn || ticks % 20 != 0) {
+            return;
+        }
+        Platform p = Astra.platform();
+        CosmeticsModule settings = settings();
+        final String server = p.getServerAddress();
+        final boolean hidden = settings != null && !settings.shareServer();
+        final String version = server == null ? null : p.minecraftVersion();
+        String now = server + "|" + hidden;
+        boolean changed = !now.equals(reportedPresence);
+        boolean due = server != null && ticks - lastPresenceTick >= 600;
+        if (!changed && !due) {
+            return;
+        }
+        reportedPresence = now;
+        lastPresenceTick = ticks;
+        net.execute(new Runnable() {
+            @Override
+            public void run() {
+                JsonObject body = new JsonObject();
+                body.addProperty("server", server);
+                body.addProperty("version", version);
+                body.addProperty("hidden", hidden);
+                try {
+                    api.postJson("/api/me/presence", body.toString());
+                } catch (Exception e) {
+                    reportedPresence = ""; // try again next time
                 }
             }
         });

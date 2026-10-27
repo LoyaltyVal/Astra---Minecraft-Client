@@ -30,7 +30,7 @@ import java.util.Set;
 public final class Astra implements ClientModInitializer {
 
     public static final String NAME = "Astra";
-    public static final String VERSION = "0.2.0";
+    public static final String VERSION = "0.3.0";
     public static final int MENU_KEY = Keyboard.KEY_RSHIFT;
 
     private static Astra instance;
@@ -130,6 +130,12 @@ public final class Astra implements ClientModInitializer {
     public float modifyFov(float fov) {
         ZoomModule zoom = modules.get(ZoomModule.class);
         return zoom == null ? fov : zoom.applyFov(fov);
+    }
+
+    /** The freelook module when it's moving the camera, else null (used by the camera mixins). */
+    public dev.astra.client.module.impl.FreelookModule freelook() {
+        dev.astra.client.module.impl.FreelookModule f = modules.get(dev.astra.client.module.impl.FreelookModule.class);
+        return f != null && f.isLooking() ? f : null;
     }
 
     /** True while Astra draws the sidebar itself (vanilla's is skipped). */

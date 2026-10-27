@@ -9,7 +9,8 @@
     "GameRendererMixin",
     "AbstractClientPlayerEntityMixin",
     "PlayerEntityRendererMixin",
-    "EntityRendererMixin"
+    "EntityRendererMixin",
+    "EntityMixin"
   ],
   "injectors": {
     "defaultRequire": 1

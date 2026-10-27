@@ -182,3 +182,19 @@ footer nav a:hover { color: var(--star); }
 .worn-item { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .worn-item img { width: 52px; height: 64px; object-fit: contain; border-radius: 8px; background: var(--surface-2); padding: 4px; flex: none; }
 .worn-item b { display: block; font: 600 16px/1.2 var(--font-display); }
+
+/* ---------- players / finder ---------- */
+.finder { display: flex; gap: 10px; max-width: 520px; margin-bottom: 18px; }
+.finder input { flex: 1; padding: 13px 14px; font-size: 15px; }
+.servers { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 30px; }
+.chip { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 999px; cursor: pointer;
+  background: rgba(155,123,255,.08); border: 1px solid rgba(155,123,255,.25); color: var(--star); font: 600 13px var(--font-body); }
+.chip b { font: 600 11px/1 var(--font-mono); color: var(--violet); }
+.chip.on { background: var(--violet); border-color: var(--violet); }
+.chip.on b { color: #fff; }
+.list-title { display: flex; align-items: center; gap: 10px; font-size: 20px; margin-bottom: 14px; }
+.where { color: var(--dust); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.playing { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px;
+  background: rgba(61,220,151,.08); border: 1px solid rgba(61,220,151,.3); font-weight: 600; }
+.btn-discord { background: #5865f2; color: #fff; }
+.btn-discord:hover { background: #4752c4; }

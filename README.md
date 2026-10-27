@@ -25,6 +25,7 @@ One app for Minecraft 1.8.9 and 1.7.10. Sign in, press Launch, and your HUD, zoo
 - [For players](#for-players)
 - [Cosmetics](#cosmetics)
 - [Run an Astra server](#run-an-astra-server)
+- [Players and Discord](#players-and-discord)
 - [For developers](#for-developers)
 - [Project structure](#project-structure)
 - [Roadmap](#roadmap)
@@ -32,7 +33,7 @@ One app for Minecraft 1.8.9 and 1.7.10. Sign in, press Launch, and your HUD, zoo
 
 ## Features
 
-**One app.** The Astra Launcher handles Microsoft sign-in and downloads Java 8, Minecraft and the mod loader for you. It keeps everything in its own folder, so your normal `.minecraft` is never touched.
+**One app.** The Astra Launcher handles Microsoft sign-in and downloads Java 8, Minecraft and the mod loader for you. Your settings, resource packs and server list are shared with your normal `.minecraft`, and Astra's mods stay in their own folder.
 
 **Everything in one menu.** Press **Right Shift** in game. Every feature is a card with a live preview: click to turn it on, open **Options** to tune colors, size, backgrounds and keybinds.
 
@@ -52,6 +53,7 @@ One app for Minecraft 1.8.9 and 1.7.10. Sign in, press Launch, and your HUD, zoo
 | Boss Bar | Move or resize the wither and dragon bar | On |
 | Toggle Sprint | Tap Left Ctrl to keep sprinting | On |
 | Zoom | Hold **C**; smooth, lowers mouse sensitivity while zoomed | On |
+| Freelook | Hold **Left Alt** (or toggle) to look around your player in third person while you keep facing the same way | On |
 | Direction HUD | Compass strip with your heading in degrees | Off |
 | Coordinates | X, Y, Z and facing | Off |
 | Ping / Speed | Latency to the server; blocks per second | Off |
@@ -154,7 +156,33 @@ Every staff action is recorded in the admin panel's **Activity** tab. Ranks and 
 
 To let friends join, host it somewhere with HTTPS (a small VPS behind Caddy or nginx, Railway, Fly.io and so on), set `publicUrl`, and have everyone put that address in the app's settings. Back up the `data/` folder.
 
+## Players and Discord
+
+**Find players.** The website's **Players** page lists everyone in game right now and the server they're on, with a search box (Enter opens any player's profile). Profiles and the Team page show "Playing on …" too. Players can hide their server in game with **Right Shift → Cosmetics → Options → Share My Server**. Raw IP addresses and LAN servers are always shown as "a private server".
+
+**Discord.** Everything is optional and set in `server/config.json`:
+
+| Key | What it does | How to get it |
+|---|---|---|
+| `discordInvite` | Adds a Discord button to the website | Discord: right-click your server → Invite People → copy a link that never expires |
+| `discordWebhook` | Posts new players and every staff action (ranks, bans, gifts, uploads) to a channel | Channel settings → Integrations → Webhooks → New Webhook → Copy Webhook URL |
+| `discordClientId` | Shows "Minecraft 1.8.9 · On mc.hypixel.net" on players' Discord profiles while they play | [discord.com/developers](https://discord.com/developers/applications) → New Application, name it **Astra Client** → copy the Application ID. Under Rich Presence → Art Assets, upload your logo with the name `astra` |
+
+Players can turn the Discord status off in the app's **Settings → Discord status**.
+
 ## For developers
+
+### The quick way (Windows)
+
+Double-click **`Start Astra.bat`** in the project folder. The first time, it installs what the app needs and asks for your Minecraft name (you become Owner). Every time, it builds the client, starts the Astra server in its own window (unless it's already running) and opens the app.
+
+| Script | What it does |
+|---|---|
+| `Start Astra.bat` | Set up if needed, build, start the server, open the app |
+| `Start Server Only.bat` | Just the server (for hosting) |
+| `Build Installer.bat` | Builds the client and a Windows installer for players in `launcher/dist`. Set `publicUrl` in `server/config.json` to your hosted server first: the installer points players there |
+
+The same commands work anywhere with `node tools/astra.js [start|server|build|installer]`.
 
 ### Prerequisites
 
@@ -223,6 +251,7 @@ versions/1.7.10/         The same for 1.7.10
 gradle/version.gradle    Shared build logic for every version
 launcher/src/main/       Electron main process: sign-in, Astra account, downloads, launching
 launcher/src/renderer/   Launcher UI
+tools/astra.js           One-step setup / build / run / installer (used by the .bat files)
 server/src/              Astra server: HTTP router, JSON store, services (auth, players, ranks, cosmetics, audit), routes
 server/public/           Website: home, cosmetics, team, player profiles, admin panel (one JS class per page)
 server/seed/             Starter capes and wings added on first run

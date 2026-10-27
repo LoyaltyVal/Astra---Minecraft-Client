@@ -36,9 +36,15 @@ class PlayerPage {
         el('h1', {}, player.name),
         el('p', { class: 'muted' },
           el('span', { class: `dot${player.online ? ' on' : ''}` }), ' ',
-          player.online ? 'Playing now' : 'Offline',
+          player.playing ? 'In game' : player.online ? 'Online' : 'Offline',
           ` · Joined ${timeAgo(player.joinedAt)}`,
           ` · ${player.ownedCount} cosmetic${player.ownedCount === 1 ? '' : 's'}`),
+        player.playing
+          ? el('p', { class: 'playing' }, el('span', { class: 'dot on' }),
+            player.playing.server
+              ? (player.playing.server === 'singleplayer' ? `Playing singleplayer · ${player.playing.version}` : `Playing on ${player.playing.server} · ${player.playing.version}`)
+              : `In game · ${player.playing.version}`)
+          : null,
         player.banned ? el('p', { class: 'banned' }, 'This player is banned from Astra.') : null,
         el('div', { class: 'worn-row' }, worn))));
   }

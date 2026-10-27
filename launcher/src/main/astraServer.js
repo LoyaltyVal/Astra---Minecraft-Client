@@ -180,4 +180,17 @@ async function gameArgs(log) {
   return args;
 }
 
-module.exports = { account, equip, openWebsite, gameArgs, forget, serverUrl };
+/** Public server settings (Discord application ID, website links). */
+async function meta() {
+  return request('GET', '/api/meta');
+}
+
+/** Where the game last said you are: { server, version, hidden } or null (from /api/me). */
+async function playing() {
+  const saved = readSession();
+  if (!saved || saved.server !== serverUrl()) return null;
+  const { player } = await request('GET', '/api/me', { token: saved.token });
+  return player.playing || null;
+}
+
+module.exports = { account, equip, openWebsite, gameArgs, forget, serverUrl, meta, playing };

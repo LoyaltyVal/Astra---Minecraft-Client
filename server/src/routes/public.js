@@ -17,12 +17,19 @@ function publicRoutes(router, ctx) {
     ranks: Object.values(RANKS),
     rarities: RARITIES,
     publicUrl: config.publicUrl,
-    downloadUrl: config.downloadUrl || ''
+    downloadUrl: config.downloadUrl || '',
+    discordInvite: /^https:\/\/(discord\.gg|discord\.com\/invite)\//.test(config.discordInvite || '') ? config.discordInvite : '',
+    discordClientId: /^\d{15,25}$/.test(String(config.discordClientId || '')) ? String(config.discordClientId) : ''
   }));
+
+  /** Everyone in game right now, with the server they're on (unless they hide it). */
+  router.get('/api/online', (req, res) => {
+    sendJson(res, 200, { players: players.inGame().map((p) => players.publicView(p, cosmetics)) });
+  });
 
   router.get('/api/stats', (req, res) => sendJson(res, 200, {
     players: players.count(),
-    online: players.onlineCount(),
+    online: players.inGame().length,
     cosmetics: cosmetics.all().length,
     staff: players.staff().length
   }));
@@ -95,6 +102,13 @@ function publicRoutes(router, ctx) {
     sendJson(res, 200, { player: me(ctx, req.player) });
   });
 
+  /** The game reports where you are every 30 seconds (see CosmeticsManager#tick in the client). */
+  router.post('/api/me/presence', requirePlayer(ctx), async (req, res) => {
+    const body = await readJson(req);
+    players.setPresence(req.player, body || {});
+    sendJson(res, 200, { ok: true });
+  });
+
   router.post('/api/me/equip', requirePlayer(ctx), async (req, res) => {
     const { type, id } = await readJson(req);
     try {
@@ -112,6 +126,7 @@ function publicRoutes(router, ctx) {
   router.get('/', page('index.html'));
   router.get('/cosmetics', page('cosmetics.html'));
   router.get('/team', page('team.html'));
+  router.get('/players', page('players.html'));
   router.get('/admin', page('admin.html'));
   router.get('/player/:name', page('player.html'));
   router.get('/favicon.ico', page('assets/img/favicon.svg'));

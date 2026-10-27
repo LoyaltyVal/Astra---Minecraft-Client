@@ -2,13 +2,23 @@ const fs = require('fs');
 const path = require('path');
 const { app } = require('electron');
 
+/** Written by `tools/astra.js installer`: the server address baked into an installer for players. */
+function buildConfig() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'build-config.json'), 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
 const DEFAULTS = {
   memoryGb: 3,
   javaPath: '',
   hideOnLaunch: true,
   lastVersion: '1.8.9',
-  serverUrl: 'http://localhost:8787',
-  shareMinecraft: true
+  serverUrl: buildConfig().serverUrl || 'http://localhost:8787',
+  shareMinecraft: true,
+  discordStatus: true
 };
 
 function file() {
@@ -37,6 +47,7 @@ function set(patch) {
   next.javaPath = String(next.javaPath || '').trim();
   next.hideOnLaunch = Boolean(next.hideOnLaunch);
   next.shareMinecraft = Boolean(next.shareMinecraft);
+  next.discordStatus = Boolean(next.discordStatus);
   next.serverUrl = String(next.serverUrl || '').trim().replace(/\/+$/, '');
   if (next.serverUrl && !/^https?:\/\/[^\s/]+/.test(next.serverUrl)) {
     throw new Error('The Astra server address must start with http:// or https://');

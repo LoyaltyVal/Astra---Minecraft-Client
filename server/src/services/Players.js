@@ -17,6 +17,25 @@ function dashed(uuid) {
 }
 
 /** Players: Minecraft identity, rank, owned and equipped cosmetics. */
+const PRESENCE_MS = 75 * 1000;
+
+/**
+ * Normalises a server address for display: lowercase hostname without the default port. Raw IP
+ * addresses and local/LAN hosts are shown as "a private server" so nobody's IP ends up on the site.
+ */
+function cleanServer(server) {
+  if (server === null || server === undefined || server === '') return null;
+  const s = String(server).trim().toLowerCase().slice(0, 100);
+  if (s === 'singleplayer') return 'singleplayer';
+  const host = s.replace(/:25565$/, '');
+  const bare = host.replace(/:\d+$/, '');
+  if (!/^[a-z0-9.-]+(:\d{1,5})?$/.test(host)) return 'a private server';
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(bare) || bare === 'localhost' || !bare.includes('.') || /\.(local|lan|internal)$/.test(bare)) {
+    return 'a private server';
+  }
+  return host;
+}
+
 class PlayerService {
   constructor(store, config) {
     this.store = store;
@@ -45,7 +64,9 @@ class PlayerService {
     }
     p.name = name;
     p.lastSeen = now;
+    const firstTime = !p.joinedAt || p.joinedAt === now;
     if (!p.joinedAt) p.joinedAt = now;
+    if (firstTime && this.onJoin) this.onJoin(p);
     if (this.owners.includes(u) || this.owners.includes(name.toLowerCase())) p.rank = 'owner';
     this.store.save();
     return p;
@@ -64,6 +85,36 @@ class PlayerService {
   touch(player) {
     player.lastSeen = new Date().toISOString();
     this.store.save();
+  }
+
+  /**
+   * What the game reports every 30 seconds: the server you're on ("singleplayer", a hostname, or
+   * null in the menus) and the game version. `hidden` = the player turned off "Share My Server".
+   */
+  setPresence(player, { server, version, hidden }) {
+    player.presence = {
+      server: cleanServer(server),
+      version: /^1\.\d+(\.\d+)?$/.test(String(version || '')) ? String(version) : null,
+      hidden: Boolean(hidden),
+      at: new Date().toISOString()
+    };
+    player.lastSeen = player.presence.at;
+    this.store.save();
+  }
+
+  /** { server, version } while the player is in game (and sharing it), else null. */
+  playing(player) {
+    const pr = player.presence;
+    if (!pr || !pr.at || Date.now() - Date.parse(pr.at) > PRESENCE_MS) return null;
+    if (!pr.version) return null;
+    return { server: pr.hidden ? null : pr.server, version: pr.version, hidden: pr.hidden };
+  }
+
+  /** Everyone in game right now, staff first. */
+  inGame() {
+    return Object.values(this.store.players)
+      .filter((p) => !p.banned && this.playing(p))
+      .sort((a, b) => rankOf(b).level - rankOf(a).level || a.name.localeCompare(b.name));
   }
 
   isOnline(player) {
@@ -111,9 +162,10 @@ class PlayerService {
         wings: p.equipped.wings ? cosmetics.summary(p.equipped.wings) : null
       },
       ownedCount: cosmetics.ownedBy(p).length,
+      playing: this.playing(p),
       banned: Boolean(p.banned)
     };
   }
 }
 
-module.exports = { PlayerService, normalizeUuid, dashed, NAME_RE, RANKS };
+module.exports = { cleanServer, PlayerService, normalizeUuid, dashed, NAME_RE, RANKS };

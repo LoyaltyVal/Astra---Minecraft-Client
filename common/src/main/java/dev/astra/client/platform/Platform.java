@@ -81,6 +81,13 @@ public interface Platform {
 
     float getPlayerYaw();
 
+    float getPlayerPitch();
+
+    /** 0 = first person, 1 = third person behind, 2 = third person in front. */
+    int getPerspective();
+
+    void setPerspective(int perspective);
+
     boolean isSprinting();
 
     /** Starts sprinting when vanilla would allow it (moving forward, not sneaking, enough food). */
@@ -102,6 +109,9 @@ public interface Platform {
 
     /** The boss bar, or null if no boss is near. */
     HudData.Boss getBossBar();
+
+    /** "singleplayer", the multiplayer server's address, or null when not in a world. */
+    String getServerAddress();
 
     /** UUIDs of every player in the loaded world (yours included), for cosmetics lookups. */
     List<String> getWorldPlayerUuids();

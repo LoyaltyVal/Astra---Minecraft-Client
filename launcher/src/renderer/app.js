@@ -378,6 +378,10 @@ function bindSettings(settings) {
   share.checked = settings.shareMinecraft;
   share.addEventListener('change', () => astra.saveSettings({ shareMinecraft: share.checked }));
 
+  const discordStatus = $('discord-status');
+  discordStatus.checked = settings.discordStatus;
+  discordStatus.addEventListener('change', () => astra.saveSettings({ discordStatus: discordStatus.checked }));
+
   const server = $('server-url');
   server.value = settings.serverUrl;
   server.addEventListener('change', async () => {

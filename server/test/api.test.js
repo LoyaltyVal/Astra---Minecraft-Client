@@ -17,10 +17,15 @@ const PNG = fs.readFileSync(path.join(ROOT, 'seed', 'ember.png'));
 let app;
 let base;
 const joined = new Map(); // serverId -> profile, simulates Mojang's session server
+const discordPosts = [];   // what the Discord webhook received
 
 /** Fake Mojang: hasJoined succeeds only for joins the "launcher" made below. */
-async function fakeFetch(url) {
+async function fakeFetch(url, init) {
   const u = new URL(url);
+  if (u.host === 'discord.com') {
+    discordPosts.push(JSON.parse(init.body));
+    return { status: 204, headers: { get: () => null }, json: async () => null };
+  }
   if (u.host === 'sessionserver.mojang.com') {
     const p = joined.get(u.searchParams.get('serverId'));
     if (!p || p.name !== u.searchParams.get('username')) return { status: 204, json: async () => null };
@@ -59,7 +64,8 @@ before(async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'astra-test-'));
   app = new App({
     port: 0, publicUrl: 'http://127.0.0.1', owners: ['astraowner'], devAuth: false, dataDir,
-    publicDir: path.join(ROOT, 'public'), seedDir: path.join(ROOT, 'seed'), secureCookies: false
+    publicDir: path.join(ROOT, 'public'), seedDir: path.join(ROOT, 'seed'), secureCookies: false,
+    discordWebhook: 'https://discord.com/api/webhooks/1/abc', discordInvite: 'https://discord.gg/astra'
   }, { fetchImpl: fakeFetch });
   const server = await app.listen(0);
   base = `http://127.0.0.1:${server.address().port}`;
@@ -180,7 +186,7 @@ test('website sign-in: one-time code → cookie; cross-site POSTs are blocked', 
 });
 
 test('pages and assets are served; path traversal is refused', async () => {
-  for (const p of ['/', '/cosmetics', '/team', '/admin', '/player/Alice']) {
+  for (const p of ['/', '/cosmetics', '/team', '/players', '/admin', '/player/Alice']) {
     const r = await fetch(base + p);
     assert.strictEqual(r.status, 200, p);
     assert.match(r.headers.get('content-type'), /text\/html/);
@@ -191,4 +197,40 @@ test('pages and assets are served; path traversal is refused', async () => {
   assert.notStrictEqual(trav.status, 200);
   const trav2 = await fetch(base + '/assets/%2e%2e/%2e%2e/package.json');
   assert.notStrictEqual(trav2.status, 200);
+});
+
+test('the game reports which server you are on; IPs and LAN hosts stay private', async () => {
+  const { cleanServer } = require('../src/services/Players');
+  assert.strictEqual(cleanServer('Play.Hypixel.net:25565'), 'play.hypixel.net');
+  assert.strictEqual(cleanServer('mc.example.com:25570'), 'mc.example.com:25570');
+  assert.strictEqual(cleanServer('192.168.1.5'), 'a private server');
+  assert.strictEqual(cleanServer('localhost:25565'), 'a private server');
+  assert.strictEqual(cleanServer('singleplayer'), 'singleplayer');
+
+  const alice = await signIn(ALICE);
+  await call('POST', '/api/me/presence', { token: alice.token, body: { server: 'mc.hypixel.net', version: '1.8.9' } });
+  const online = await call('GET', '/api/online');
+  const a = online.json.players.find((p) => p.name === 'Alice');
+  assert.deepStrictEqual(a.playing, { server: 'mc.hypixel.net', version: '1.8.9', hidden: false });
+  const profile = await call('GET', '/api/profile/Alice');
+  assert.strictEqual(profile.json.player.playing.server, 'mc.hypixel.net');
+
+  // "Share My Server" off: still shown as playing, but not where.
+  await call('POST', '/api/me/presence', { token: alice.token, body: { server: 'mc.hypixel.net', version: '1.8.9', hidden: true } });
+  const hidden = await call('GET', '/api/profile/Alice');
+  assert.strictEqual(hidden.json.player.playing.server, null);
+
+  // Back in the menus: no longer listed as in game.
+  await call('POST', '/api/me/presence', { token: alice.token, body: { server: null, version: null } });
+  const after = await call('GET', '/api/online');
+  assert.ok(!after.json.players.some((p) => p.name === 'Alice'));
+});
+
+test('Discord: invite on the website, webhook posts staff actions', async () => {
+  const meta = await call('GET', '/api/meta');
+  assert.strictEqual(meta.json.discordInvite, 'https://discord.gg/astra');
+  await new Promise((r) => setTimeout(r, 1500)); // the webhook queue sends one message at a time
+  const text = JSON.stringify(discordPosts);
+  assert.match(text, /joined Astra/);
+  assert.match(text, /uploaded cosmetic/);
 });

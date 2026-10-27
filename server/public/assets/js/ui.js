@@ -3,6 +3,7 @@ import { api } from './api.js';
 
 const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5l2.6 7.9 7.9 2.6-7.9 2.6L12 22.5l-2.6-7.9L1.5 12l7.9-2.6z"/></svg>';
 const DOWNLOAD = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 17v3h16v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const DISCORD = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.3 4.4A19.6 19.6 0 0 0 15.4 3l-.6 1.3a18.2 18.2 0 0 0-5.6 0L8.6 3a19.5 19.5 0 0 0-4.9 1.5C.6 9.1-.3 13.6.1 18a19.8 19.8 0 0 0 6 3l1.3-2a12.8 12.8 0 0 1-2-1l.5-.4a14 14 0 0 0 12.2 0l.5.4a12.8 12.8 0 0 1-2 1l1.3 2a19.7 19.7 0 0 0 6-3c.5-5.1-.8-9.6-3.6-13.6zM8 15.3c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4zm8 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4z"/></svg>';
 const WINDOWS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4.6l7.4-1v7.1H3zm8.3-1.1L21 2v8.7h-9.7zM3 11.6h7.4v7.1L3 17.7zm8.3 0H21V21l-9.7-1.4z"/></svg>';
 
 /** Creates an element: el('a', { href: '/', class: 'x' }, 'text', child). */
@@ -85,7 +86,7 @@ export class SiteChrome {
   async mount() {
     const header = document.querySelector('[data-nav]');
     const footer = document.querySelector('[data-footer]');
-    const links = [['/#changelog', 'Changelog', 'changelog'], ['/cosmetics', 'Cosmetics', 'cosmetics'], ['/team', 'Team', 'team'], ['/#faq', 'FAQ', 'faq']];
+    const links = [['/players', 'Players', 'players'], ['/cosmetics', 'Cosmetics', 'cosmetics'], ['/team', 'Team', 'team'], ['/#changelog', 'Changelog', 'changelog']];
     if (header) {
       header.className = 'nav';
       header.innerHTML = `<div class="wrap"><a class="brand" href="/" aria-label="Astra home">${STAR}ASTRA</a>
@@ -100,7 +101,7 @@ export class SiteChrome {
         <div class="foot-brand"><a class="brand" href="/" aria-label="Astra home">${STAR}ASTRA</a>
           <p>A free PvP client for Minecraft 1.8.9 and 1.7.10.</p></div>
         <nav aria-label="Client"><b>Client</b><a class="js-download" href="/#download">Download</a><a href="/#changelog">Changelog</a><a href="/#faq">FAQ</a></nav>
-        <nav aria-label="Community"><b>Community</b><a href="/cosmetics">Cosmetics</a><a href="/team">Team</a><a href="/admin">Admin panel</a></nav>
+        <nav aria-label="Community" data-community><b>Community</b><a href="/players">Players</a><a href="/cosmetics">Cosmetics</a><a href="/team">Team</a><a href="/admin">Admin panel</a></nav>
         <nav aria-label="Account"><b>Account</b><a href="/admin">Sign in</a><a href="/logout">Sign out</a></nav>
       </div>
       <div class="wrap foot-legal"><p>© ${new Date().getFullYear()} Astra Client. Not an official Minecraft product. Not approved by or associated with Mojang or Microsoft.</p></div>`;
@@ -109,6 +110,7 @@ export class SiteChrome {
     this.me = await api.me().catch(() => null);
     this.renderUser();
     this.wireDownloads();
+    this.wireDiscord();
     return this;
   }
 
@@ -124,6 +126,21 @@ export class SiteChrome {
     const a = el('a', { class: 'btn btn-quiet btn-sm js-download nav-dl', href: '/#download' });
     a.innerHTML = `${DOWNLOAD}Download`;
     slot.append(a);
+  }
+
+  /** Adds Discord links (nav and footer) when the server has an invite set. */
+  wireDiscord() {
+    const invite = this.meta && this.meta.discordInvite;
+    if (!invite) return;
+    const slot = document.querySelector('[data-user]');
+    if (slot) {
+      const a = el('a', { class: 'btn btn-discord btn-sm', href: invite, target: '_blank', rel: 'noopener', title: 'Join the Astra Discord' });
+      a.innerHTML = `${DISCORD}<span class="sr">Discord</span>`;
+      slot.prepend(a);
+    }
+    const community = document.querySelector('[data-community]');
+    if (community) community.append(el('a', { href: invite, target: '_blank', rel: 'noopener' }, 'Discord'));
+    document.querySelectorAll('.js-discord').forEach((b) => { b.href = invite; b.hidden = false; });
   }
 
   /** Points every .js-download link at the configured installer, or explains it's coming soon. */

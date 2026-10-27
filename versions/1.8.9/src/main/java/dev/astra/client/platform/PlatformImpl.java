@@ -364,4 +364,31 @@ public final class PlatformImpl implements dev.astra.client.platform.Platform {
         }
         return out;
     }
+
+    @Override
+    public float getPlayerPitch() {
+        return mc().player.pitch;
+    }
+
+    @Override
+    public int getPerspective() {
+        return mc().options.perspective;
+    }
+
+    @Override
+    public void setPerspective(int perspective) {
+        mc().options.perspective = perspective;
+    }
+
+    @Override
+    public String getServerAddress() {
+        if (!isInGame()) {
+            return null;
+        }
+        if (mc().isIntegratedServerRunning()) {
+            return "singleplayer";
+        }
+        net.minecraft.client.network.ServerInfo entry = mc().getCurrentServerEntry();
+        return entry != null && entry.address != null ? entry.address : "unknown";
+    }
 }

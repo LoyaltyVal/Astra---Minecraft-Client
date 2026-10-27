@@ -13,3 +13,4 @@ out/
 launcher/node_modules/
 launcher/dist/
 launcher/mods/
+launcher/build-config.json

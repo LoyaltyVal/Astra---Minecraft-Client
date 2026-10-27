@@ -1,8 +1,13 @@
 {
   "port": 8787,
   "publicUrl": "http://localhost:8787",
-  "owners": ["YourMinecraftName"],
+  "owners": [
+    "YourMinecraftName"
+  ],
   "devAuth": false,
   "dataDir": "data",
-  "downloadUrl": ""
+  "downloadUrl": "",
+  "discordInvite": "",
+  "discordWebhook": "",
+  "discordClientId": ""
 }

@@ -9,6 +9,7 @@ const { ensureLoader } = require('./fabric');
 const { installMod } = require('./mods');
 const astraServer = require('./astraServer');
 const shared = require('./shared');
+const { DiscordPresence } = require('./discord');
 
 let running = null;
 
@@ -81,6 +82,7 @@ async function launchGame(versionId, ui) {
   });
   client.on('close', (code) => {
     running = null;
+    stopDiscord();
     if (share) shared.save(gameDirectory, ui.log);
     ui.state('closed', { code });
   });
@@ -109,7 +111,49 @@ async function launchGame(versionId, ui) {
     throw new Error('Minecraft failed to start. Open the Logs tab for details.');
   }
   running = proc;
+  if (settings.discordStatus) startDiscord(version.id, ui.log);
   return { pid: proc.pid };
+}
+
+// ---- Discord status while the game runs ----
+
+let discord = null;
+let discordTimer = null;
+
+async function startDiscord(versionId, log) {
+  stopDiscord();
+  try {
+    const meta = await astraServer.meta();
+    if (!meta.discordClientId) return;
+    discord = new DiscordPresence(log);
+    if (!(await discord.start(meta.discordClientId))) {
+      discord = null;
+      return;
+    }
+    const website = meta.publicUrl;
+    const tick = async () => {
+      const playing = await astraServer.playing().catch(() => null);
+      if (!discord) return;
+      discord.update({
+        version: (playing && playing.version) || versionId,
+        server: playing ? playing.server : null,
+        hidden: Boolean(playing && playing.hidden),
+        website
+      });
+    };
+    await tick();
+    discordTimer = setInterval(tick, 15000);
+    log('[Astra] Discord status is on.');
+  } catch (e) {
+    log(`[Astra] Discord status unavailable: ${e.message}`);
+  }
+}
+
+function stopDiscord() {
+  if (discordTimer) clearInterval(discordTimer);
+  discordTimer = null;
+  if (discord) discord.stop();
+  discord = null;
 }
 
 function killGame() {

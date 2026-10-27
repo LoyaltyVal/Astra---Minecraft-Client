@@ -9,6 +9,7 @@ const { PlayerService } = require('./services/Players');
 const { CosmeticService } = require('./services/Cosmetics');
 const { AuthService } = require('./services/Auth');
 const { AuditLog } = require('./services/Audit');
+const { DiscordNotifier } = require('./services/Discord');
 const { publicRoutes } = require('./routes/public');
 const { adminRoutes } = require('./routes/admin');
 
@@ -29,8 +30,10 @@ class App {
     const players = new PlayerService(this.store, config);
     const cosmetics = new CosmeticService(this.store, config.dataDir);
     const auth = new AuthService({ store: this.store, players, config, fetchImpl });
-    const audit = new AuditLog(this.store);
-    this.ctx = { config, store: this.store, players, cosmetics, auth, audit, fetch: fetchImpl };
+    const discord = new DiscordNotifier(config, fetchImpl);
+    players.onJoin = (p) => discord.newPlayer(p);
+    const audit = new AuditLog(this.store, discord);
+    this.ctx = { config, store: this.store, players, cosmetics, auth, audit, discord, fetch: fetchImpl };
 
     const seeded = cosmetics.seed(config.seedDir);
     if (seeded) console.log(`[astra] Added ${seeded} starter cosmetics.`);

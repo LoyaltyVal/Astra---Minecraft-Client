@@ -3,6 +3,7 @@ package dev.astra.client.module;
 import dev.astra.client.module.impl.ClientSettingsModule;
 import dev.astra.client.module.impl.CosmeticsModule;
 import dev.astra.client.module.impl.FullbrightModule;
+import dev.astra.client.module.impl.FreelookModule;
 import dev.astra.client.module.impl.ZoomModule;
 import dev.astra.client.module.impl.hud.ArmorStatusModule;
 import dev.astra.client.module.impl.hud.BossBarModule;
@@ -50,6 +51,7 @@ public final class ModuleManager {
         // Mechanics & visuals
         register(new ToggleSprintModule());
         register(new ZoomModule());
+        register(new FreelookModule());
         register(new FullbrightModule());
     }
 

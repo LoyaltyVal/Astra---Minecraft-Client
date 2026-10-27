@@ -30,8 +30,9 @@ class TeamPage {
     return el('a', { class: 'person', href: `/player/${encodeURIComponent(p.name)}` },
       el('img', { src: avatar(p.uuid, 96), alt: '' }),
       el('span', { class: 'who' },
-        el('b', {}, p.name, el('span', { class: `dot${p.online ? ' on' : ''}`, title: p.online ? 'Online' : 'Offline' })),
-        rankBadge(p.rank)));
+        el('b', {}, p.name, el('span', { class: `dot${p.playing ? ' on' : ''}`, title: p.playing ? 'In game' : 'Offline' })),
+        rankBadge(p.rank),
+        p.playing && p.playing.server ? el('small', { class: 'where' }, p.playing.server === 'singleplayer' ? 'Singleplayer' : `On ${p.playing.server}`) : null));
   }
 }
 
