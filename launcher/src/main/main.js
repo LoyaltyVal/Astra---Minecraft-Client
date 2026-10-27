@@ -5,7 +5,7 @@ const auth = require('./auth');
 const store = require('./store');
 const paths = require('./paths');
 const log = require('./log');
-const cosmetics = require('./cosmetics');
+const astraServer = require('./astraServer');
 const { VERSIONS } = require('./config');
 const { launchGame, isRunning, killGame } = require('./launch');
 
@@ -107,7 +107,10 @@ handle('app:info', () => ({
 
 handle('auth:get', () => auth.getAccount());
 handle('auth:login', () => auth.login());
-handle('auth:logout', () => auth.logout());
+handle('auth:logout', () => {
+  auth.logout();
+  astraServer.forget();
+});
 
 handle('settings:get', () => store.get());
 handle('settings:set', (patch) => store.set(patch || {}));
@@ -128,20 +131,9 @@ handle('game:openFolder', (versionId) => {
 });
 handle('app:openLogs', () => shell.openPath(log.dir()));
 
-handle('cosmetics:list', () => cosmetics.list());
-handle('cosmetics:equip', (type, name) => cosmetics.equip(String(type), name === null ? null : String(name)));
-handle('cosmetics:remove', (type, name) => cosmetics.remove(String(type), String(name)));
-handle('cosmetics:openFolder', (type) => cosmetics.openFolder(type ? String(type) : null));
-handle('cosmetics:import', async (type) => {
-  const result = await dialog.showOpenDialog(win, {
-    title: type === 'cape' ? 'Add capes' : 'Add wings',
-    buttonLabel: 'Add',
-    properties: ['openFile', 'multiSelections'],
-    filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg'] }]
-  });
-  if (result.canceled) return [];
-  return cosmetics.importFiles(String(type), result.filePaths);
-});
+handle('astra:account', () => astraServer.account());
+handle('astra:equip', (type, id) => astraServer.equip(String(type), id === null ? null : String(id)));
+handle('astra:openWebsite', () => astraServer.openWebsite());
 
 ipcMain.on('window:minimize', () => win && win.minimize());
 ipcMain.on('window:maximize', () => {
@@ -153,11 +145,6 @@ ipcMain.on('window:close', () => win && win.close());
 
 app.whenReady().then(() => {
   log.open();
-  try {
-    cosmetics.seedDefaults();
-  } catch (e) {
-    log.write(`Couldn't set up cosmetics: ${e}`);
-  }
   createWindow();
 });
 

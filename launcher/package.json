@@ -36,10 +36,6 @@
       {
         "from": "mods",
         "to": "mods"
-      },
-      {
-        "from": "resources/cosmetics",
-        "to": "cosmetics"
       }
     ],
     "win": {

@@ -8,7 +8,8 @@
     "InGameHudMixin",
     "GameRendererMixin",
     "AbstractClientPlayerEntityMixin",
-    "PlayerEntityRendererMixin"
+    "PlayerEntityRendererMixin",
+    "EntityRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

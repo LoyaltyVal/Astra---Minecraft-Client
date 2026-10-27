@@ -370,4 +370,18 @@ public final class PlatformImpl implements dev.astra.client.platform.Platform {
     public void setSensitivity(float sensitivity) {
         mc().options.sensitivity = sensitivity;
     }
+
+    @Override
+    public List<String> getWorldPlayerUuids() {
+        List<String> out = new ArrayList<String>();
+        if (mc().world == null) {
+            return out;
+        }
+        for (Object o : new ArrayList<Object>(mc().world.playerEntities)) {
+            if (o instanceof net.minecraft.entity.Entity) {
+                out.add(((net.minecraft.entity.Entity) o).getUuid().toString());
+            }
+        }
+        return out;
+    }
 }

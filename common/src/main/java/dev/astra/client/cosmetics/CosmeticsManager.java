@@ -2,55 +2,100 @@ package dev.astra.client.cosmetics;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import dev.astra.client.Astra;
 import dev.astra.client.module.impl.CosmeticsModule;
 import dev.astra.client.platform.Platform;
 import org.lwjgl.opengl.GL11;
 
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.io.Reader;
-import java.io.Writer;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Capes and wings made from your own images.
+ * Server-side cosmetics: everyone's capes, wings and rank tags come from the Astra server.
  *
- * Folder layout (shared with the Astra Launcher, which passes -Dastra.cosmetics=...):
- *   cosmetics/capes/*.png     any picture, or a standard 64x32 cape template
- *   cosmetics/wings/*.png     a single wing (root on the left, tip on the right) or a pair
- *   cosmetics/equipped.json   {"cape": "name.png", "wings": "name.png"}
+ * The Astra app signs you in to the server and starts the game with
+ *   -Dastra.api=https://your-server   -Dastra.token=&lt;session token&gt;
  *
- * Images are decoded on a background thread and uploaded to the GPU on the render thread.
- * Cosmetics are drawn on your own player; other players see them only once a cosmetics server
- * shares them (see README).
+ * Then, on background threads:
+ *   - your account (what you own and wear) is loaded from /api/me, the catalog from /api/cosmetics;
+ *   - every 2 seconds the players in your world are looked up in one batch (/api/players?uuids=...),
+ *     each answer cached for a minute, so every Astra player's cape, wings and rank show for you;
+ *   - cosmetic images are downloaded once, turned into textures by {@link CosmeticImages}, and
+ *     uploaded to the GPU on the render thread the first time they're drawn.
+ * Equipping (from the in-game menu, the app or the website) is saved on the server, so everyone sees it.
  */
 public final class CosmeticsManager {
 
     public enum Type {
-        CAPE("capes"),
+        CAPE("cape"),
         WINGS("wings");
 
-        public final String folder;
+        public final String id;
 
-        Type(String folder) {
-            this.folder = folder;
+        Type(String id) {
+            this.id = id;
+        }
+
+        static Type of(String id) {
+            return "wings".equals(id) ? WINGS : CAPE;
+        }
+    }
+
+    /** One cosmetic from the server's catalog. */
+    public static final class Info {
+        public final String id;
+        public final String name;
+        public final Type type;
+        public final String rarity;
+
+        Info(String id, String name, Type type, String rarity) {
+            this.id = id;
+            this.name = name;
+            this.type = type;
+            this.rarity = rarity;
+        }
+    }
+
+    /** What the server said about one player (or that they don't use Astra). */
+    static final class PlayerInfo {
+        final boolean astra;
+        final String rankName;
+        final String rankColor;   // Minecraft colour code, e.g. "c"
+        final boolean ranked;     // anything above Player gets a tag
+        final String cape;
+        final String wings;
+        final long fetched;
+
+        PlayerInfo(boolean astra, String rankName, String rankColor, boolean ranked,
+                   String cape, String wings, long fetched) {
+            this.astra = astra;
+            this.rankName = rankName;
+            this.rankColor = rankColor;
+            this.ranked = ranked;
+            this.cape = cape;
+            this.wings = wings;
+            this.fetched = fetched;
+        }
+
+        static PlayerInfo notAstra(long fetched) {
+            return new PlayerInfo(false, null, null, false, null, null, fetched);
+        }
+
+        PlayerInfo withEquipped(Type type, String id) {
+            return new PlayerInfo(true, rankName, rankColor, ranked,
+                    type == Type.CAPE ? id : cape, type == Type.WINGS ? id : wings, fetched);
         }
     }
 
@@ -58,15 +103,13 @@ public final class CosmeticsManager {
     public static final class Texture {
         public final int width;
         public final int height;
-        final long modified;
         final BufferedImage image;
         Object handle;
 
-        Texture(BufferedImage image, long modified) {
+        Texture(BufferedImage image) {
             this.image = image;
             this.width = image.getWidth();
             this.height = image.getHeight();
-            this.modified = modified;
         }
 
         public Object getHandle() {
@@ -74,154 +117,388 @@ public final class CosmeticsManager {
         }
     }
 
-    private static final Charset UTF8 = Charset.forName("UTF-8");
-    private static final List<String> EXTENSIONS = Arrays.asList(".png", ".jpg", ".jpeg");
+    private static final long LOOKUP_TTL = 60000L;        // re-ask about a player after a minute
+    private static final long FORGET_AFTER = 10 * 60000L; // drop players not seen for 10 minutes
+    private static final int LOOKUP_EVERY = 40;           // ticks (2 seconds)
+    private static final int ACCOUNT_EVERY = 20 * 60 * 5; // ticks (5 minutes)
+    private static final int BATCH = 150;
 
-    private final File root;
+    private final AstraApiClient api;
+    private final ExecutorService net = executor("Astra cosmetics network");
+    private final ExecutorService images = executor("Astra cosmetics images");
+    private final AtomicBoolean lookupBusy = new AtomicBoolean();
+
+    private final Map<String, Info> catalog = new ConcurrentHashMap<String, Info>();
+    private final Map<String, PlayerInfo> players = new ConcurrentHashMap<String, PlayerInfo>();
     private final Map<String, Texture> textures = new ConcurrentHashMap<String, Texture>();
     private final Map<String, Boolean> loading = new ConcurrentHashMap<String, Boolean>();
     private final Map<String, String> failed = new ConcurrentHashMap<String, String>();
-    private final ExecutorService loader = Executors.newSingleThreadExecutor(new ThreadFactory() {
-        @Override
-        public Thread newThread(Runnable r) {
-            Thread t = new Thread(r, "Astra cosmetics loader");
-            t.setDaemon(true);
-            return t;
-        }
-    });
+    private final Map<UUID, String> keys = new ConcurrentHashMap<UUID, String>();
 
-    private String cape;
-    private String wings;
-    private long equippedModified = -1;
+    private volatile String selfUuid;
+    private volatile List<String> owned = Collections.emptyList();
+    private volatile String status;
+    private volatile boolean signedIn;
     private int ticks;
 
-    public CosmeticsManager(File root) {
-        this.root = root;
-        for (Type type : Type.values()) {
-            new File(root, type.folder).mkdirs();
+    /**
+     * @param apiUrl the Astra server, or null when the game wasn't started by the Astra app
+     * @param token  the session token from the app, or null (others' cosmetics still show)
+     */
+    public CosmeticsManager(String apiUrl, String token) {
+        if (apiUrl == null || apiUrl.trim().isEmpty()) {
+            api = null;
+            status = "Start Minecraft from the Astra app to use cosmetics.";
+            return;
         }
-        readEquipped();
+        api = new AstraApiClient(apiUrl.trim(), token);
+        status = "Connecting to the Astra server...";
+        refresh();
     }
 
-    public File getRoot() {
-        return root;
+    // ------------------------------------------------------------------ status & account
+
+    /** A message for the cosmetics page when something isn't working, or null when all is well. */
+    public String getStatus() {
+        return status;
     }
 
-    public File getFolder(Type type) {
-        return new File(root, type.folder);
+    public boolean isSignedIn() {
+        return signedIn;
     }
 
-    // ------------------------------------------------------------------ listing & equipping
+    /** Reloads the catalog and your account in the background. */
+    public void refresh() {
+        if (api == null) {
+            return;
+        }
+        net.execute(new Runnable() {
+            @Override
+            public void run() {
+                loadAccount();
+            }
+        });
+    }
 
-    public List<String> list(Type type) {
-        List<String> names = new ArrayList<String>();
-        File[] files = getFolder(type).listFiles();
-        if (files != null) {
-            for (File f : files) {
-                String lower = f.getName().toLowerCase(Locale.ROOT);
-                for (String ext : EXTENSIONS) {
-                    if (f.isFile() && lower.endsWith(ext)) {
-                        names.add(f.getName());
-                        break;
-                    }
+    private void loadAccount() {
+        try {
+            Map<String, Info> fresh = new ConcurrentHashMap<String, Info>();
+            for (JsonElement e : api.getJson("/api/cosmetics").getAsJsonObject().getAsJsonArray("cosmetics")) {
+                Info info = info(e.getAsJsonObject());
+                fresh.put(info.id, info);
+            }
+            if (!api.hasToken()) {
+                catalog.putAll(fresh);
+                signedIn = false;
+                status = "Sign in through the Astra app to wear cosmetics. Other players' cosmetics still show.";
+                return;
+            }
+            JsonObject me = api.getJson("/api/me").getAsJsonObject().getAsJsonObject("player");
+            List<String> mine = new ArrayList<String>();
+            for (JsonElement e : me.getAsJsonArray("owned")) {
+                Info info = info(e.getAsJsonObject());
+                fresh.put(info.id, info); // owned items can be hidden from the public catalog
+                mine.add(info.id);
+            }
+            catalog.putAll(fresh);
+            catalog.keySet().retainAll(fresh.keySet());
+            owned = Collections.unmodifiableList(mine);
+            String uuid = normalize(string(me, "uuid"));
+            JsonObject eq = me.getAsJsonObject("equippedIds");
+            players.put(uuid, player(me, string(eq, "cape"), string(eq, "wings")));
+            selfUuid = uuid;
+            signedIn = true;
+            status = null;
+        } catch (AstraApiClient.ApiException e) {
+            signedIn = false;
+            status = e.status == 401 ? "Your Astra sign-in expired. Restart the game from the Astra app."
+                    : e.status == 403 ? e.getMessage()
+                    : e.getMessage() + ". Retrying in a few minutes.";
+        } catch (Exception e) {
+            status = "Couldn't load cosmetics: " + e.getMessage();
+            System.err.println("[Astra] Cosmetics account load failed: " + e);
+        }
+    }
+
+    /** Called every client tick: looks up the players around you. */
+    public void tick() {
+        if (api == null) {
+            return;
+        }
+        ticks++;
+        if (ticks % ACCOUNT_EVERY == 0) {
+            refresh();
+        }
+        if (ticks % LOOKUP_EVERY != 0 || lookupBusy.get()) {
+            return;
+        }
+        Platform p = Astra.platform();
+        if (!p.isInGame()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        final List<String> wanted = new ArrayList<String>();
+        for (String uuid : p.getWorldPlayerUuids()) {
+            String id = normalize(uuid);
+            if (id == null || id.equals(selfUuid) || wanted.contains(id)) {
+                continue;
+            }
+            PlayerInfo known = players.get(id);
+            if (known == null || now - known.fetched > LOOKUP_TTL) {
+                wanted.add(id);
+            }
+            if (wanted.size() >= BATCH) {
+                break;
+            }
+        }
+        forgetOld(now);
+        if (wanted.isEmpty() || !lookupBusy.compareAndSet(false, true)) {
+            return;
+        }
+        net.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    lookup(wanted);
+                } finally {
+                    lookupBusy.set(false);
+                }
+            }
+        });
+    }
+
+    private void lookup(List<String> uuids) {
+        StringBuilder q = new StringBuilder();
+        for (String id : uuids) {
+            q.append(q.length() == 0 ? "" : ",").append(id);
+        }
+        long now = System.currentTimeMillis();
+        try {
+            JsonObject found = api.getJson("/api/players?uuids=" + q).getAsJsonObject().getAsJsonObject("players");
+            for (String id : uuids) {
+                if (found.has(id)) {
+                    JsonObject o = found.getAsJsonObject(id);
+                    players.put(id, player(o, string(o, "cape"), string(o, "wings")));
+                } else {
+                    players.put(id, PlayerInfo.notAstra(now));
+                }
+            }
+        } catch (Exception e) {
+            // Server unreachable: ask about these players again in 30 seconds instead of every round.
+            for (String id : uuids) {
+                if (!players.containsKey(id)) {
+                    players.put(id, PlayerInfo.notAstra(now - LOOKUP_TTL / 2));
                 }
             }
         }
-        Collections.sort(names, String.CASE_INSENSITIVE_ORDER);
-        return names;
     }
 
-    public String getEquipped(Type type) {
-        return type == Type.CAPE ? cape : wings;
-    }
-
-    public void equip(Type type, String name) {
-        if (type == Type.CAPE) {
-            cape = name;
-        } else {
-            wings = name;
-        }
-        writeEquipped();
-    }
-
-    public String getError(Type type, String name) {
-        return failed.get(key(type, name));
-    }
-
-    /** Called every client tick: picks up changes the launcher makes to equipped.json. */
-    public void tick() {
-        if (++ticks % 40 == 0) {
-            File file = equippedFile();
-            if (file.lastModified() != equippedModified) {
-                readEquipped();
+    private void forgetOld(long now) {
+        Iterator<Map.Entry<String, PlayerInfo>> it = players.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<String, PlayerInfo> e = it.next();
+            if (!e.getKey().equals(selfUuid) && now - e.getValue().fetched > FORGET_AFTER) {
+                it.remove();
             }
         }
     }
 
-    // ------------------------------------------------------------------ textures
+    // ------------------------------------------------------------------ the cosmetics page
 
-    /** The processed texture for an image, or null while it's still loading (or if it failed). */
-    public Texture getTexture(Type type, String name) {
-        if (name == null) {
+    /** The ids of everything you can wear of this type (free ones plus what you were given), by name. */
+    public List<String> list(Type type) {
+        List<String> ids = new ArrayList<String>();
+        for (String id : owned) {
+            Info info = catalog.get(id);
+            if (info != null && info.type == type) {
+                ids.add(id);
+            }
+        }
+        Collections.sort(ids, new Comparator<String>() {
+            @Override
+            public int compare(String a, String b) {
+                return getName(a).compareToIgnoreCase(getName(b));
+            }
+        });
+        return ids;
+    }
+
+    public String getName(String id) {
+        Info info = catalog.get(id);
+        return info == null ? id : info.name;
+    }
+
+    public String getRarity(String id) {
+        Info info = catalog.get(id);
+        return info == null ? "common" : info.rarity;
+    }
+
+    /** The id you're wearing of this type, or null. */
+    public String getEquipped(Type type) {
+        PlayerInfo me = selfUuid == null ? null : players.get(selfUuid);
+        if (me == null) {
             return null;
         }
-        final String key = key(type, name);
-        final File file = new File(getFolder(type), name);
-        Texture tex = textures.get(key);
-        if (tex != null && tex.modified != file.lastModified()) {
-            textures.remove(key);
-            failed.remove(key);
-            tex = null;
+        return type == Type.CAPE ? me.cape : me.wings;
+    }
+
+    /** Wears (or, with null, takes off) a cosmetic. Shows straight away; saved on the server. */
+    public void equip(final Type type, final String id) {
+        if (api == null || selfUuid == null) {
+            return;
         }
-        if (tex == null) {
-            if (!failed.containsKey(key) && loading.putIfAbsent(key, Boolean.TRUE) == null) {
-                final Type t = type;
-                loader.execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            BufferedImage img = CosmeticImages.read(file);
-                            img = t == Type.CAPE ? CosmeticImages.toCapeTexture(img) : CosmeticImages.toWingTexture(img);
-                            textures.put(key, new Texture(img, file.lastModified()));
-                        } catch (Throwable e) {
-                            failed.put(key, e.getMessage() == null ? e.toString() : e.getMessage());
-                            System.err.println("[Astra] Couldn't load cosmetic " + file + ": " + e);
-                        } finally {
-                            loading.remove(key);
-                        }
+        final String uuid = selfUuid;
+        final String before = getEquipped(type);
+        PlayerInfo me = players.get(uuid);
+        if (me != null) {
+            players.put(uuid, me.withEquipped(type, id));
+        }
+        net.execute(new Runnable() {
+            @Override
+            public void run() {
+                JsonObject body = new JsonObject();
+                body.addProperty("type", type.id);
+                body.addProperty("id", id);
+                try {
+                    api.postJson("/api/me/equip", body.toString());
+                    status = null;
+                } catch (Exception e) {
+                    PlayerInfo now = players.get(uuid);
+                    if (now != null) {
+                        players.put(uuid, now.withEquipped(type, before));
                     }
-                });
+                    status = "Couldn't save: " + e.getMessage();
+                }
             }
+        });
+    }
+
+    /** The processed texture for a cosmetic, or null while it downloads (or if it failed). */
+    public Texture getTexture(Type type, String id) {
+        if (id == null || api == null) {
+            return null;
+        }
+        Texture tex = textures.get(id);
+        if (tex == null) {
+            download(id);
             return null;
         }
         if (tex.handle == null) {
-            tex.handle = Astra.platform().createTexture("astra_" + key.replaceAll("[^a-z0-9_]", "_"), tex.image);
+            String name = "astra_cosmetic_" + id.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_]", "_");
+            tex.handle = Astra.platform().createTexture(name, tex.image);
         }
         return tex;
     }
 
-    /** The equipped cape's texture handle, or null for no cape (used by the cape mixin). */
-    public Object getCapeTexture() {
-        CosmeticsModule settings = settings();
-        if (cape == null || (settings != null && !settings.showCape())) {
+    public String getError(Type type, String id) {
+        return id == null ? null : failed.get(id);
+    }
+
+    private void download(final String id) {
+        if (failed.containsKey(id) || loading.putIfAbsent(id, Boolean.TRUE) != null) {
+            return;
+        }
+        images.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Info info = catalog.get(id);
+                    if (info == null) {
+                        // Someone is wearing something we haven't seen yet: learn the new catalog.
+                        reloadCatalog();
+                        info = catalog.get(id);
+                    }
+                    byte[] data = api.getBytes("/api/cosmetics/" + id + "/image");
+                    BufferedImage img = CosmeticImages.read(data);
+                    Type type = info != null ? info.type
+                            : CosmeticImages.isCapeTemplate(img) ? Type.CAPE : Type.WINGS;
+                    img = type == Type.CAPE ? CosmeticImages.toCapeTexture(img) : CosmeticImages.toWingTexture(img);
+                    textures.put(id, new Texture(img));
+                } catch (AstraApiClient.ApiException e) {
+                    if (e.status == 404) {
+                        failed.put(id, "Removed from the server");
+                    }
+                    // Network trouble: it's tried again the next time it's drawn.
+                } catch (Throwable e) {
+                    failed.put(id, e.getMessage() == null ? e.toString() : e.getMessage());
+                    System.err.println("[Astra] Couldn't load cosmetic " + id + ": " + e);
+                } finally {
+                    loading.remove(id);
+                }
+            }
+        });
+    }
+
+    private void reloadCatalog() {
+        try {
+            for (JsonElement e : api.getJson("/api/cosmetics").getAsJsonObject().getAsJsonArray("cosmetics")) {
+                Info info = info(e.getAsJsonObject());
+                catalog.put(info.id, info);
+            }
+        } catch (Exception ignored) {
+            // the type is guessed from the image instead
+        }
+    }
+
+    // ------------------------------------------------------------------ rendering hooks (any player)
+
+    private PlayerInfo visible(UUID uuid) {
+        String id = key(uuid);
+        if (id == null) {
             return null;
         }
-        Texture tex = getTexture(Type.CAPE, cape);
+        PlayerInfo info = players.get(id);
+        if (info == null || !info.astra) {
+            return null;
+        }
+        CosmeticsModule settings = settings();
+        if (settings != null && !id.equals(selfUuid) && !settings.showOthers()) {
+            return null;
+        }
+        return info;
+    }
+
+    /** The cape texture handle for a player, or null to let vanilla decide (used by the cape mixin). */
+    public Object getCapeTexture(UUID uuid) {
+        CosmeticsModule settings = settings();
+        if (settings != null && !settings.showCape()) {
+            return null;
+        }
+        PlayerInfo info = visible(uuid);
+        if (info == null || info.cape == null) {
+            return null;
+        }
+        Texture tex = getTexture(Type.CAPE, info.cape);
         return tex == null ? null : tex.handle;
     }
 
-    // ------------------------------------------------------------------ wings
+    /** "§c[Owner] " for ranked Astra players, or null. Drawn in front of their name tag. */
+    public String getRankTag(UUID uuid) {
+        CosmeticsModule settings = settings();
+        if (settings != null && !settings.showRankTags()) {
+            return null;
+        }
+        PlayerInfo info = visible(uuid);
+        if (info == null || !info.ranked || info.rankName == null) {
+            return null;
+        }
+        return "§" + info.rankColor + "[" + info.rankName + "]§r ";
+    }
 
     /**
-     * Draws the equipped wings. Called from the player renderer while the GL matrix is in the
+     * Draws a player's wings. Called from the player renderer while the GL matrix is in the
      * player model's space (1 unit = 1 block, y pointing down, +z = behind the player).
      */
-    public void renderWings(float ageTicks, boolean sneaking) {
+    public void renderWings(UUID uuid, float ageTicks, boolean sneaking) {
         CosmeticsModule settings = settings();
-        if (wings == null || settings == null || !settings.showWings()) {
+        if (settings == null || !settings.showWings()) {
             return;
         }
-        Texture tex = getTexture(Type.WINGS, wings);
+        PlayerInfo info = visible(uuid);
+        if (info == null || info.wings == null) {
+            return;
+        }
+        Texture tex = getTexture(Type.WINGS, info.wings);
         if (tex == null) {
             return;
         }
@@ -283,70 +560,68 @@ public final class CosmeticsManager {
         GL11.glPopMatrix();
     }
 
-    // ------------------------------------------------------------------ equipped.json
+    // ------------------------------------------------------------------ helpers
 
-    private File equippedFile() {
-        return new File(root, "equipped.json");
+    private static Info info(JsonObject o) {
+        return new Info(string(o, "id"), string(o, "name"), Type.of(string(o, "type")),
+                o.has("rarity") ? string(o, "rarity") : "common");
     }
 
-    private void readEquipped() {
-        File file = equippedFile();
-        equippedModified = file.lastModified();
-        if (!file.isFile()) {
-            return;
+    private static PlayerInfo player(JsonObject o, String cape, String wings) {
+        JsonObject rank = o.has("rank") && o.get("rank").isJsonObject() ? o.getAsJsonObject("rank") : new JsonObject();
+        String rankId = string(rank, "id");
+        String mc = string(rank, "mc");
+        return new PlayerInfo(true, string(rank, "name"),
+                mc == null || mc.length() != 1 ? "7" : mc,
+                rankId != null && !"player".equals(rankId),
+                cape, wings, System.currentTimeMillis());
+    }
+
+    /** The server's form of a UUID (32 hex characters), cached because it's needed every frame. */
+    private String key(UUID uuid) {
+        if (uuid == null) {
+            return null;
         }
-        Reader reader = null;
-        try {
-            reader = new InputStreamReader(new FileInputStream(file), UTF8);
-            @SuppressWarnings("deprecation")
-            JsonElement root = new JsonParser().parse(reader);
-            if (root.isJsonObject()) {
-                JsonObject obj = root.getAsJsonObject();
-                cape = string(obj, "cape");
-                wings = string(obj, "wings");
+        String k = keys.get(uuid);
+        if (k == null) {
+            if (keys.size() > 2000) {
+                keys.clear();
             }
-        } catch (Exception e) {
-            System.err.println("[Astra] Couldn't read " + file + ": " + e);
-        } finally {
-            close(reader);
+            k = uuid.toString().replace("-", "");
+            keys.put(uuid, k);
         }
+        return k;
     }
 
-    private void writeEquipped() {
-        JsonObject obj = new JsonObject();
-        obj.addProperty("cape", cape);
-        obj.addProperty("wings", wings);
-        Writer writer = null;
-        try {
-            writer = new OutputStreamWriter(new FileOutputStream(equippedFile()), UTF8);
-            writer.write(obj.toString());
-        } catch (IOException e) {
-            System.err.println("[Astra] Couldn't save equipped cosmetics: " + e);
-        } finally {
-            close(writer);
-            equippedModified = equippedFile().lastModified();
+    /** 32 lowercase hex characters, no dashes; null if it isn't a UUID. */
+    static String normalize(String uuid) {
+        if (uuid == null) {
+            return null;
         }
+        String s = uuid.replace("-", "").toLowerCase(Locale.ROOT);
+        return s.matches("[0-9a-f]{32}") ? s : null;
     }
 
     private static String string(JsonObject obj, String key) {
-        return obj.has(key) && obj.get(key).isJsonPrimitive() ? obj.get(key).getAsString() : null;
-    }
-
-    private static String key(Type type, String name) {
-        return type.folder + "/" + name.toLowerCase(Locale.ROOT);
+        if (obj == null || !obj.has(key)) {
+            return null;
+        }
+        JsonElement e = obj.get(key);
+        return e.isJsonPrimitive() ? e.getAsString() : null;
     }
 
     private static CosmeticsModule settings() {
         return Astra.get().getModules().get(CosmeticsModule.class);
     }
 
-    private static void close(java.io.Closeable c) {
-        if (c != null) {
-            try {
-                c.close();
-            } catch (IOException ignored) {
-                // nothing to do
+    private static ExecutorService executor(final String name) {
+        return Executors.newSingleThreadExecutor(new ThreadFactory() {
+            @Override
+            public Thread newThread(Runnable r) {
+                Thread t = new Thread(r, name);
+                t.setDaemon(true);
+                return t;
             }
-        }
+        });
     }
 }

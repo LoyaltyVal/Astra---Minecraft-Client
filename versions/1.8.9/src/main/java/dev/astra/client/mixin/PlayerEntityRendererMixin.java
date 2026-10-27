@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Adds the wings layer to every player renderer (it only draws on your own player). */
+/** Adds the wings layer to every player renderer (it draws on any Astra player wearing wings). */
 @Mixin(net.minecraft.client.render.entity.PlayerEntityRenderer.class)
 public abstract class PlayerEntityRendererMixin extends LivingEntityRenderer<AbstractClientPlayerEntity> {
 

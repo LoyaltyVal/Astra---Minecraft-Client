@@ -103,6 +103,9 @@ public interface Platform {
     /** The boss bar, or null if no boss is near. */
     HudData.Boss getBossBar();
 
+    /** UUIDs of every player in the loaded world (yours included), for cosmetics lookups. */
+    List<String> getWorldPlayerUuids();
+
     // ---- options ----
 
     float getGamma();

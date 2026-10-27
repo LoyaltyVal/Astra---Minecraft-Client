@@ -37,6 +37,10 @@
         <span>Logs</span>
       </button>
       <div class="nav-spacer"></div>
+      <button class="nav" id="nav-admin" title="Admin panel" hidden>
+        <svg viewBox="0 0 24 24"><path d="M12 2.8l7.5 3v5.6c0 4.6-3.1 8.6-7.5 9.8-4.4-1.2-7.5-5.2-7.5-9.8V5.8z"/><path d="M8.8 12l2.2 2.2 4.3-4.4"/></svg>
+        <span>Admin</span>
+      </button>
       <button class="nav" data-view="settings" title="Settings">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg>
         <span>Settings</span>
@@ -57,12 +61,12 @@
           </div>
 
           <aside class="card news" aria-label="What's new">
-            <p class="card-eyebrow">What's new &middot; 0.2</p>
+            <p class="card-eyebrow">What's new &middot; 0.3</p>
             <ul>
-              <li><b>Scoreboard</b>, <b>Armor Status</b>, <b>Potion Effects</b> and <b>Boss Bar</b>, all movable</li>
-              <li><b>Direction HUD</b>, <b>Ping</b> and <b>Speed</b></li>
-              <li><b>Capes &amp; wings</b> from your own images</li>
-              <li>A cleaner in-game menu with a Cosmetics page</li>
+              <li><b>Astra accounts:</b> your cosmetics and rank follow you</li>
+              <li><b>Everyone sees cosmetics:</b> capes and wings show on every Astra player</li>
+              <li><b>Rank tags</b> next to staff names in game</li>
+              <li>A website with a catalog, team page and profiles</li>
             </ul>
           </aside>
         </div>
@@ -73,6 +77,7 @@
             <div class="account-placeholder" id="account-placeholder" aria-hidden="true"></div>
             <div class="account-text">
               <span class="account-name" id="account-name">Not signed in</span>
+              <span class="account-rank" id="account-rank" hidden></span>
               <button class="link" id="account-action">Sign in with Microsoft</button>
             </div>
           </div>
@@ -92,11 +97,11 @@
         <div class="view-head">
           <div>
             <h2>Cosmetics</h2>
-            <p class="sub">Click to equip. Changes show up in game within a couple of seconds.</p>
+            <p class="sub" id="cos-sub">Saved to your Astra account. Every Astra player sees what you wear.</p>
           </div>
           <div class="actions">
-            <button class="ghost" id="cos-folder">Open folder</button>
-            <button class="primary" id="cos-import">Add images</button>
+            <button class="ghost" id="cos-refresh">Refresh</button>
+            <button class="primary" id="cos-web">Open on website</button>
           </div>
         </div>
 
@@ -158,6 +163,14 @@
               <p>Leave empty and Astra downloads Mojang's Java 8 automatically.</p>
             </div>
             <input type="text" id="java-path" placeholder="Automatic (recommended)" spellcheck="false">
+          </div>
+
+          <div class="setting">
+            <div>
+              <label for="server-url">Astra server</label>
+              <p>Where cosmetics, ranks and the admin panel live. Ask whoever runs your Astra server for the address.</p>
+            </div>
+            <input type="text" id="server-url" placeholder="http://localhost:8080" spellcheck="false">
           </div>
 
           <div class="setting">

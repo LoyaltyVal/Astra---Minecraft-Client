@@ -6,7 +6,8 @@ const DEFAULTS = {
   memoryGb: 3,
   javaPath: '',
   hideOnLaunch: true,
-  lastVersion: '1.8.9'
+  lastVersion: '1.8.9',
+  serverUrl: 'http://localhost:8080'
 };
 
 function file() {
@@ -32,6 +33,10 @@ function set(patch) {
   next.memoryGb = Math.max(1, Math.min(16, Number(next.memoryGb) || DEFAULTS.memoryGb));
   next.javaPath = String(next.javaPath || '').trim();
   next.hideOnLaunch = Boolean(next.hideOnLaunch);
+  next.serverUrl = String(next.serverUrl || '').trim().replace(/\/+$/, '');
+  if (next.serverUrl && !/^https?:\/\/[^\s/]+/.test(next.serverUrl)) {
+    throw new Error('The Astra server address must start with http:// or https://');
+  }
 
   fs.mkdirSync(path.dirname(file()), { recursive: true });
   fs.writeFileSync(file(), JSON.stringify(next, null, 2));

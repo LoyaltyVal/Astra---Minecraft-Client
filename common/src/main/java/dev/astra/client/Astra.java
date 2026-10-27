@@ -54,10 +54,8 @@ public final class Astra implements ClientModInitializer {
         config = new ConfigManager(file, modules);
         config.load();
 
-        // The launcher points every version at one shared folder; without it, use the game folder.
-        String dir = System.getProperty("astra.cosmetics");
-        cosmetics = new CosmeticsManager(dir != null && !dir.isEmpty()
-                ? new File(dir) : new File(platform.getGameDir(), "cosmetics"));
+        // The Astra app passes the cosmetics server and your session token when it starts the game.
+        cosmetics = new CosmeticsManager(System.getProperty("astra.api"), System.getProperty("astra.token"));
 
         Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
             @Override

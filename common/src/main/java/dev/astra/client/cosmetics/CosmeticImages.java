@@ -33,6 +33,15 @@ public final class CosmeticImages {
         return limit(toArgb(raw), MAX_SIZE);
     }
 
+    /** Decodes a downloaded PNG or JPEG. */
+    public static BufferedImage read(byte[] data) throws IOException {
+        BufferedImage raw = ImageIO.read(new java.io.ByteArrayInputStream(data));
+        if (raw == null) {
+            throw new IOException("The server sent something that isn't an image");
+        }
+        return limit(toArgb(raw), MAX_SIZE);
+    }
+
     // ------------------------------------------------------------------ capes
 
     public static boolean isCapeTemplate(BufferedImage img) {

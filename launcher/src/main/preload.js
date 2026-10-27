@@ -17,12 +17,10 @@ contextBridge.exposeInMainWorld('astra', {
 
   openLogs: () => ipcRenderer.invoke('app:openLogs'),
 
-  cosmetics: {
-    list: () => ipcRenderer.invoke('cosmetics:list'),
-    equip: (type, name) => ipcRenderer.invoke('cosmetics:equip', type, name),
-    remove: (type, name) => ipcRenderer.invoke('cosmetics:remove', type, name),
-    import: (type) => ipcRenderer.invoke('cosmetics:import', type),
-    openFolder: (type) => ipcRenderer.invoke('cosmetics:openFolder', type)
+  server: {
+    account: () => ipcRenderer.invoke('astra:account'),
+    equip: (type, id) => ipcRenderer.invoke('astra:equip', type, id),
+    openWebsite: () => ipcRenderer.invoke('astra:openWebsite')
   },
 
   onState: (fn) => ipcRenderer.on('launch:state', (_e, data) => fn(data)),

@@ -11,8 +11,9 @@ const state = {
   phase: 'idle', // idle | preparing | running
   logLines: [],
   cosmeticType: 'cape',
-  cosmetics: null,
-  confirmRemove: null
+  astra: null,        // your Astra account (rank, owned cosmetics, equipped), once loaded
+  astraError: null,
+  astraLoading: false
 };
 
 // ---------------------------------------------------------------- helpers
@@ -60,7 +61,8 @@ function showView(name) {
     logs.scrollTop = logs.scrollHeight;
   }
   if (name === 'cosmetics') {
-    loadCosmetics();
+    if (!state.astra) loadAstra();
+    else renderCosmetics();
   }
 }
 
@@ -127,6 +129,7 @@ async function signIn() {
   if (res.ok) {
     state.account = res.value;
     setStatus(`Signed in as ${res.value.name}`);
+    loadAstra();
   } else if (res.cancelled) {
     setStatus('Ready');
   } else {
@@ -141,6 +144,9 @@ $('account-action').addEventListener('click', async () => {
   if (state.account) {
     await astra.logout();
     state.account = null;
+    state.astra = null;
+    state.astraError = null;
+    renderAstraAccount();
     setStatus('Signed out');
     renderAccount();
   } else {
@@ -228,21 +234,37 @@ astra.onState(({ name, detail }) => {
 
 astra.onLog(appendLog);
 
-// ---------------------------------------------------------------- cosmetics
+// ---------------------------------------------------------------- Astra account & cosmetics
 
-const HINTS = {
-  cape: 'Any picture works: Astra crops it to the cape. A standard 64×32 cape template (or HD 128×64, 256×128…) is used as-is.',
-  wings: 'Use one wing with its root on the left and the tip on the right, or a pair side by side. A plain background is removed automatically.'
-};
-
-async function loadCosmetics() {
-  const res = await astra.cosmetics.list();
-  if (!res.ok) {
-    toast(res.error);
-    return;
-  }
-  state.cosmetics = res.value;
+/** Signs in to the Astra server (quietly) and loads your rank and cosmetics. */
+async function loadAstra() {
+  if (!state.account || state.astraLoading) return;
+  state.astraLoading = true;
   renderCosmetics();
+  const res = await astra.server.account();
+  state.astraLoading = false;
+  if (res.ok) {
+    state.astra = res.value;
+    state.astraError = null;
+  } else {
+    state.astra = null;
+    state.astraError = res.error;
+  }
+  renderAstraAccount();
+  renderCosmetics();
+}
+
+function renderAstraAccount() {
+  const rank = $('account-rank');
+  const a = state.account && state.astra;
+  if (a && a.rank && a.rank.id !== 'player') {
+    rank.textContent = a.rank.name;
+    rank.style.color = a.rank.color;
+    rank.hidden = false;
+  } else {
+    rank.hidden = true;
+  }
+  $('nav-admin').hidden = !(a && a.staff);
 }
 
 function renderCosmetics() {
@@ -252,102 +274,76 @@ function renderCosmetics() {
     b.classList.toggle('active', active);
     b.setAttribute('aria-selected', String(active));
   });
-  $('cos-hint').textContent = HINTS[type];
-
   const grid = $('cos-grid');
+  const hint = $('cos-hint');
   grid.innerHTML = '';
-  const items = (state.cosmetics && state.cosmetics[type]) || [];
+  hint.textContent = '';
 
-  if (!items.length) {
+  const message = (title, body) => {
     const empty = el('div', 'cos-empty');
-    empty.append(
-      el('b', '', type === 'cape' ? 'No capes yet.' : 'No wings yet.'),
-      document.createElement('br'),
-      document.createTextNode('Click "Add images" to import PNG or JPG files.')
-    );
+    empty.append(el('b', '', title), document.createElement('br'), document.createTextNode(body));
     grid.appendChild(empty);
-    return;
-  }
+  };
+  if (!state.account) return message('Sign in first.', 'Sign in with Microsoft on the Play tab to see your cosmetics.');
+  if (state.astraError) return message("Couldn't reach your Astra account.", `${state.astraError} Check the Astra server address in Settings, then click Refresh.`);
+  if (!state.astra) return message('Loading your cosmetics…', 'Signing in to the Astra server.');
+
+  hint.textContent = type === 'cape'
+    ? 'Click a cape to wear it. Staff can give you special ones from the admin panel.'
+    : 'Click wings to wear them. Size and flap speed are in game: Right Shift → Cosmetics → Options.';
+  const items = state.astra.owned.filter((c) => c.type === type);
+  if (!items.length) return message(type === 'cape' ? 'No capes yet.' : 'No wings yet.', 'Free cosmetics and ones given to you show up here.');
 
   for (const item of items) {
-    const card = el('button', 'cos' + (item.equipped ? ' equipped' : ''));
-    card.title = item.equipped ? 'Click to unequip' : 'Click to equip';
-
+    const on = state.astra.equipped[type] === item.id;
+    const card = el('button', 'cos' + (on ? ' equipped' : ''));
+    card.title = on ? 'Click to take off' : 'Click to wear';
     const thumb = el('div', 'cos-thumb' + (type === 'cape' ? ' cape' : ''));
-    if (item.thumbnail) {
+    if (item.image) {
       const img = document.createElement('img');
-      img.src = item.thumbnail;
+      img.src = item.image;
       img.alt = '';
       thumb.appendChild(img);
     } else {
-      thumb.appendChild(el('span', 'cos-state', "Couldn't read image"));
+      thumb.appendChild(el('span', 'cos-state', "Couldn't load image"));
     }
-
-    const remove = el('span', 'cos-remove');
-    remove.setAttribute('role', 'button');
-    remove.setAttribute('tabindex', '0');
-    remove.title = state.confirmRemove === item.name ? 'Click again to move to the Recycle Bin' : 'Remove';
-    remove.innerHTML = '<svg viewBox="0 0 16 16"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M5 4.5l.6 8.5h4.8l.6-8.5"/></svg>';
-    if (state.confirmRemove === item.name) {
-      remove.style.opacity = '1';
-      remove.style.background = 'var(--danger)';
-    }
-    remove.addEventListener('click', (e) => {
-      e.stopPropagation();
-      removeCosmetic(item.name);
-    });
-
-    card.append(
-      thumb,
-      remove,
-      el('span', 'cos-name', item.label),
-      el('span', 'cos-state', item.equipped ? 'Equipped' : 'Click to equip')
-    );
-    card.addEventListener('click', () => equipCosmetic(item.equipped ? null : item.name));
+    card.append(thumb, el('span', 'cos-name', item.name), el('span', `cos-rarity ${item.rarity}`, item.rarity),
+      el('span', 'cos-state', on ? 'Wearing' : 'Click to wear'));
+    card.addEventListener('click', () => equipCosmetic(on ? null : item.id));
     grid.appendChild(card);
   }
 }
 
-async function equipCosmetic(name) {
-  const res = await astra.cosmetics.equip(state.cosmeticType, name);
+async function equipCosmetic(id) {
+  const type = state.cosmeticType;
+  const before = state.astra.equipped[type];
+  state.astra.equipped[type] = id;
+  renderCosmetics();
+  const res = await astra.server.equip(type, id);
   if (!res.ok) {
+    state.astra.equipped[type] = before;
+    renderCosmetics();
     toast(res.error);
+  } else {
+    state.astra.equipped = res.value;
+    toast(id ? 'Wearing it now. Everyone on Astra will see it.' : 'Taken off.', true);
   }
-  state.confirmRemove = null;
-  loadCosmetics();
 }
 
-async function removeCosmetic(name) {
-  if (state.confirmRemove !== name) {
-    state.confirmRemove = name;
-    renderCosmetics();
-    return;
-  }
-  state.confirmRemove = null;
-  const res = await astra.cosmetics.remove(state.cosmeticType, name);
+async function openWebsite() {
+  const res = await astra.server.openWebsite();
   if (!res.ok) toast(res.error);
-  else toast('Moved to the Recycle Bin', true);
-  loadCosmetics();
 }
 
 document.querySelectorAll('.seg').forEach((b) => {
   b.addEventListener('click', () => {
     state.cosmeticType = b.dataset.type;
-    state.confirmRemove = null;
     renderCosmetics();
   });
 });
-
-$('cos-import').addEventListener('click', async () => {
-  const res = await astra.cosmetics.import(state.cosmeticType);
-  if (!res.ok) {
-    toast(res.error);
-  } else if (res.value.length) {
-    toast(`Added ${res.value.length} image${res.value.length > 1 ? 's' : ''}`, true);
-  }
-  loadCosmetics();
-});
-$('cos-folder').addEventListener('click', () => astra.cosmetics.openFolder(state.cosmeticType));
+$('cos-refresh').addEventListener('click', loadAstra);
+$('cos-web').addEventListener('click', openWebsite);
+$('nav-admin').addEventListener('click', openWebsite);
 
 // ---------------------------------------------------------------- logs view
 
@@ -377,6 +373,21 @@ function bindSettings(settings) {
   const hide = $('hide-on-launch');
   hide.checked = settings.hideOnLaunch;
   hide.addEventListener('change', () => astra.saveSettings({ hideOnLaunch: hide.checked }));
+
+  const server = $('server-url');
+  server.value = settings.serverUrl;
+  server.addEventListener('change', async () => {
+    const res = await astra.saveSettings({ serverUrl: server.value });
+    if (!res.ok) {
+      toast(res.error);
+      return;
+    }
+    server.value = res.value.serverUrl;
+    state.astra = null;
+    state.astraError = null;
+    renderAstraAccount();
+    loadAstra();
+  });
 
   const java = $('java-path');
   java.value = settings.javaPath;
@@ -408,4 +419,5 @@ function bindSettings(settings) {
 
   renderVersions();
   renderAccount();
+  loadAstra();
 })();

@@ -1,0 +1,6 @@
+[
+  { "name": "Astra Nebula", "type": "cape", "rarity": "epic", "free": true, "file": "astra-nebula.png" },
+  { "name": "Ember", "type": "cape", "rarity": "rare", "free": true, "file": "ember.png" },
+  { "name": "Angel", "type": "wings", "rarity": "legendary", "free": true, "file": "angel.png" },
+  { "name": "Void", "type": "wings", "rarity": "legendary", "free": true, "file": "void.png" }
+]

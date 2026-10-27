@@ -1,7 +1,6 @@
 package dev.astra.client.mixin;
 
 import dev.astra.client.Astra;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.entity.PlayerEntityRenderer;
 import org.spongepowered.asm.mixin.Mixin;
@@ -18,9 +17,9 @@ public abstract class PlayerEntityRendererMixin {
 
     @Inject(method = "method_1582", at = @At("TAIL"))
     private void astra$wings(AbstractClientPlayerEntity player, float tickDelta, CallbackInfo ci) {
-        if ((Object) player != MinecraftClient.getInstance().field_3805 || player.isInvisible()) {
+        if (player.isInvisible()) {
             return;
         }
-        Astra.get().getCosmetics().renderWings(player.ticksAlive + tickDelta, player.isSneaking());
+        Astra.get().getCosmetics().renderWings(player.getUuid(), player.ticksAlive + tickDelta, player.isSneaking());
     }
 }

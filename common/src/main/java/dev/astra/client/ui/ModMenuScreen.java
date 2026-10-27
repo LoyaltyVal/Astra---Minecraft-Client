@@ -14,7 +14,6 @@ import dev.astra.client.module.setting.ModeSetting;
 import dev.astra.client.module.setting.NumberSetting;
 import dev.astra.client.module.setting.Setting;
 import dev.astra.client.util.Colors;
-import dev.astra.client.util.Files;
 import dev.astra.client.util.Keys;
 import dev.astra.client.util.Render;
 import org.lwjgl.input.Keyboard;
@@ -360,7 +359,7 @@ public final class ModMenuScreen extends UiScreen {
             tab("WINGS", tx, ty, th, cosmeticType == CosmeticsManager.Type.WINGS, mx, my);
             int ox = px + pw - 4;
             ox -= barButton("OPTIONS", ox, ty, th, mx, my) + 3;
-            barButton("OPEN FOLDER", ox, ty, th, mx, my);
+            barButton("REFRESH", ox, ty, th, mx, my);
         }
     }
 
@@ -516,18 +515,23 @@ public final class ModMenuScreen extends UiScreen {
     private void drawCosmeticsEmpty() {
         boolean capes = cosmeticType == CosmeticsManager.Type.CAPE;
         float cx = contentX + contentW / 2f;
-        int y = contentY + contentH / 2 - 30;
+        int y = contentY + contentH / 2 - 24;
+        String status = cosmeticsManager().getStatus();
+        if (status != null) {
+            Render.textCentered("Cosmetics aren't available right now", cx, y, Theme.TEXT, true);
+            Render.textCentered(Render.trim(status, contentW - 20), cx, y + 16, Theme.SUBTEXT, true);
+            Render.textCentered("Click REFRESH to try again.", cx, y + 30, Theme.accent(), true);
+            return;
+        }
         Render.textCentered(capes ? "No capes yet" : "No wings yet", cx, y, Theme.TEXT, true);
-        Render.textCentered("Add PNG images to this folder, then come back:", cx, y + 16, Theme.SUBTEXT, true);
-        Render.textCentered(Render.trim(cosmeticsManager().getFolder(cosmeticType).getAbsolutePath(), contentW - 20),
-                cx, y + 28, Theme.accent(), true);
-        Render.textCentered(capes ? "Any picture works. Astra fits it onto the cape."
-                : "Use one wing (root on the left) or a pair. Backgrounds are removed.", cx, y + 44, Theme.SUBTEXT, true);
+        Render.textCentered("Cosmetics come from your Astra account. Staff can give you more", cx, y + 16, Theme.SUBTEXT, true);
+        Render.textCentered("from the admin panel, and free ones show up for everyone.", cx, y + 28, Theme.SUBTEXT, true);
     }
 
-    private void drawCosmeticCard(String name, int x, int y, int w, int mx, int my) {
+    private void drawCosmeticCard(String id, int x, int y, int w, int mx, int my) {
         CosmeticsManager cm = cosmeticsManager();
-        boolean equipped = name.equals(cm.getEquipped(cosmeticType));
+        String name = cm.getName(id);
+        boolean equipped = id.equals(cm.getEquipped(cosmeticType));
         float h = hoverAmount("cos:" + cosmeticType + name, Render.inside(mx, my, x, y, w, CARD_H));
         int bg = equipped
                 ? Colors.lerp(Theme.accentCard(), Theme.accentCardHover(), h)
@@ -537,8 +541,8 @@ public final class ModMenuScreen extends UiScreen {
         // Thumbnail.
         int boxY = y + 5;
         int boxH = 68;
-        CosmeticsManager.Texture tex = cm.getTexture(cosmeticType, name);
-        String error = cm.getError(cosmeticType, name);
+        CosmeticsManager.Texture tex = cm.getTexture(cosmeticType, id);
+        String error = cm.getError(cosmeticType, id);
         if (tex != null && tex.getHandle() != null) {
             if (cosmeticType == CosmeticsManager.Type.CAPE) {
                 // The outer face of the cape: 10x16 cape pixels at (1,1) on the 64x32 layout.
@@ -553,12 +557,11 @@ public final class ModMenuScreen extends UiScreen {
             }
             Astra.platform().color(1f, 1f, 1f, 1f);
         } else {
-            String status = error != null ? "Couldn't read image" : "Loading...";
+            String status = error != null ? "Couldn't load image" : "Loading...";
             Render.textCentered(status, x + w / 2f, boxY + boxH / 2f - 4, error != null ? Theme.OFF : Theme.SUBTEXT, true);
         }
 
-        String label = name.replaceAll("\\.(?i)(png|jpe?g)$", "");
-        Render.textCentered(Render.trim(label, w - 8), x + w / 2f, y + CARD_H - 34, Theme.TEXT, true);
+        Render.textCentered(Render.trim(name, w - 8), x + w / 2f, y + CARD_H - 34, Theme.TEXT, true);
         cardButton(equipped ? "UNEQUIP" : "EQUIP", x + 4, y + CARD_H - 20, w - 8, 16, mx, my, true);
     }
 
@@ -768,11 +771,11 @@ public final class ModMenuScreen extends UiScreen {
             }
             int right = px + pw - 4;
             int optionsW = Render.width("OPTIONS") + 12;
-            int folderW = Render.width("OPEN FOLDER") + 12;
+            int refreshW = Render.width("REFRESH") + 12;
             if (Render.inside(mx, my, right - optionsW, ty, optionsW, th)) {
                 openSettings(Astra.get().getModules().get(CosmeticsModule.class));
-            } else if (Render.inside(mx, my, right - optionsW - 3 - folderW, ty, folderW, th)) {
-                Files.open(cosmeticsManager().getFolder(cosmeticType));
+            } else if (Render.inside(mx, my, right - optionsW - 3 - refreshW, ty, refreshW, th)) {
+                cosmeticsManager().refresh();
             }
         }
         return true;
@@ -815,9 +818,9 @@ public final class ModMenuScreen extends UiScreen {
             int cx = contentX + (i % cols) * (cw + GAP);
             int cy = contentY + (i / cols) * (CARD_H + GAP) - (int) scroll;
             if (Render.inside(mx, my, cx, cy, cw, CARD_H)) {
-                String name = names.get(i);
-                boolean equipped = name.equals(cosmeticsManager().getEquipped(cosmeticType));
-                cosmeticsManager().equip(cosmeticType, equipped ? null : name);
+                String id = names.get(i);
+                boolean equipped = id.equals(cosmeticsManager().getEquipped(cosmeticType));
+                cosmeticsManager().equip(cosmeticType, equipped ? null : id);
                 return;
             }
         }

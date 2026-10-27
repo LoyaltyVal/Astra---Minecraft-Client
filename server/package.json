@@ -1,0 +1,16 @@
+{
+  "name": "astra-server",
+  "version": "0.3.0",
+  "description": "Astra Client backend: website, player accounts, ranks and server-side cosmetics.",
+  "main": "src/index.js",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --test test/api.test.js"
+  }
+}

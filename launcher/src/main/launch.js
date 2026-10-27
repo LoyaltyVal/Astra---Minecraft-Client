@@ -7,7 +7,7 @@ const { getVersion } = require('./config');
 const { ensureJava } = require('./java');
 const { ensureLoader } = require('./fabric');
 const { installMod } = require('./mods');
-const cosmetics = require('./cosmetics');
+const astraServer = require('./astraServer');
 
 let running = null;
 
@@ -42,19 +42,25 @@ async function launchGame(versionId, ui) {
   const custom = await ensureLoader(version.id, ui.progress);
   installMod(version.id, ui.log);
 
+  // Cosmetics server + your Astra session for the game. The token is kept out of the logs.
+  ui.progress({ label: 'Connecting to Astra', current: 0, total: 1 });
+  const astraArgs = await astraServer.gameArgs(ui.log);
+  const secret = (astraArgs.find((a) => a.startsWith('-Dastra.token=')) || '').slice('-Dastra.token='.length);
+  const log = (line) => ui.log(secret ? String(line).split(secret).join('********') : line);
+
   const gameDirectory = paths.instanceDir(version.id);
   fs.mkdirSync(gameDirectory, { recursive: true });
 
   const client = new Client();
   let started = false;
 
-  client.on('debug', (line) => ui.log(String(line).trim()));
+  client.on('debug', (line) => log(String(line).trim()));
   client.on('progress', (e) => {
     ui.progress({ label: `Downloading Minecraft ${e.type}`, current: e.task, total: e.total });
   });
   client.on('data', (chunk) => {
     for (const line of String(chunk).split(/\r?\n/)) {
-      if (line.trim()) ui.log(line);
+      if (line.trim()) log(line);
     }
     if (!started) {
       started = true;
@@ -78,7 +84,7 @@ async function launchGame(versionId, ui) {
       detached: false
     },
     customArgs: [
-      `-Dastra.cosmetics=${cosmetics.root()}`,
+      ...astraArgs,
       '-XX:+UseG1GC',
       '-XX:+UnlockExperimentalVMOptions',
       '-XX:G1NewSizePercent=20',
