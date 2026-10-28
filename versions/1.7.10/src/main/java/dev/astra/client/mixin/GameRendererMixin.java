@@ -62,4 +62,24 @@ public abstract class GameRendererMixin {
         player.prevPitch = astra$prevPitch;
         astra$swapped = null;
     }
+
+    // ---- No Hurtcam / No Fog ----
+
+    /** GameRenderer#bobViewWhenHurt (MCP: hurtCameraEffect) shakes the camera when you're hit. */
+    @Inject(method = "bobViewWhenHurt", at = @At("HEAD"), cancellable = true)
+    private void astra$noHurtcam(float tickDelta, CallbackInfo ci) {
+        dev.astra.client.module.impl.HurtcamModule m = Astra.get().getModules().get(dev.astra.client.module.impl.HurtcamModule.class);
+        if (m != null && m.isEnabled()) {
+            ci.cancel();
+        }
+    }
+
+    /** GameRenderer#renderFog (MCP: setupFog) ends by turning fog on; Performance → No Fog turns it off again. */
+    @Inject(method = "renderFog", at = @At("TAIL"))
+    private void astra$noFog(int mode, float tickDelta, CallbackInfo ci) {
+        dev.astra.client.module.impl.PerformanceModule m = Astra.get().getModules().get(dev.astra.client.module.impl.PerformanceModule.class);
+        if (m != null && m.noFog()) {
+            org.lwjgl.opengl.GL11.glDisable(org.lwjgl.opengl.GL11.GL_FOG);
+        }
+    }
 }

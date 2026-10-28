@@ -67,7 +67,9 @@ public final class ConfigManager {
         if (json.has("enabled")) {
             module.loadEnabled(json.get("enabled").getAsBoolean());
         }
-        if (module instanceof HudModule && json.has("x") && json.has("y")) {
+        if (module instanceof HudModule && json.has("fx") && json.has("fy")) {
+            ((HudModule) module).setFraction(json.get("fx").getAsFloat(), json.get("fy").getAsFloat());
+        } else if (module instanceof HudModule && json.has("x") && json.has("y")) {
             ((HudModule) module).setPosition(json.get("x").getAsFloat(), json.get("y").getAsFloat());
         }
         if (json.has("settings") && json.get("settings").isJsonObject()) {
@@ -88,6 +90,10 @@ public final class ConfigManager {
             if (module instanceof HudModule && ((HudModule) module).isPlaced()) {
                 json.addProperty("x", ((HudModule) module).getX());
                 json.addProperty("y", ((HudModule) module).getY());
+                if (((HudModule) module).getFractionX() >= 0) {
+                    json.addProperty("fx", ((HudModule) module).getFractionX());
+                    json.addProperty("fy", ((HudModule) module).getFractionY());
+                }
             }
             JsonObject settings = new JsonObject();
             for (Setting<?> setting : module.getSettings()) {

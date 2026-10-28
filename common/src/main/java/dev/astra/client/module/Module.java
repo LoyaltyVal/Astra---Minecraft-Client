@@ -60,6 +60,22 @@ public abstract class Module {
     public void onTick() {
     }
 
+    /** A chat line arrived (plain text, colour codes removed). Runs while enabled. */
+    public void onChat(String message) {
+    }
+
+    /** Draws on the in-game HUD every frame while enabled (not while a menu is open). */
+    public void onRenderHud(float tickDelta) {
+    }
+
+    /**
+     * Modules with their own screen (Waypoints, Screenshots, Radio) return it here; the mod menu
+     * then shows an OPEN button on the card.
+     */
+    public dev.astra.client.ui.UiScreen createScreen() {
+        return null;
+    }
+
     /** Big text shown on this module's card in the menu (HUD modules show a live preview instead). */
     public String getPreviewText() {
         return getName();

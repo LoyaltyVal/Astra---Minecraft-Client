@@ -90,6 +90,9 @@ public interface Platform {
 
     boolean isSprinting();
 
+    /** The key bound to Sprint in Minecraft's controls (LWJGL code; negative = mouse button). */
+    int getSprintKeyCode();
+
     /** Starts sprinting when vanilla would allow it (moving forward, not sneaking, enough food). */
     void sprintIfPossible();
 
@@ -116,7 +119,60 @@ public interface Platform {
     /** UUIDs of every player in the loaded world (yours included), for cosmetics lookups. */
     List<String> getWorldPlayerUuids();
 
+    /** Potions in your inventory. kind: 0 = splash healing, 1 = any healing, 2 = any potion. */
+    int countPotions(int kind);
+
+    /**
+     * 1.7-style: while you use an item (block, eat, draw a bow) and hold attack, swing the arm.
+     * Only the animation; nothing is sent to the server.
+     */
+    void swingIfUsingAndAttacking();
+
+    /** Sends a chat message or /command as if you typed it. */
+    void sendChatMessage(String message);
+
+    /** Frees a texture made with {@link #createTexture}. */
+    void deleteTexture(Object handle);
+
+    // ---- world & camera (waypoints) ----
+
+    float getHealth();
+
+    /** -1 nether, 0 overworld, 1 end (other numbers for modded dimensions). */
+    int getDimension();
+
+    /** The singleplayer world's folder name, or null in multiplayer. */
+    String getWorldName();
+
+    /** Where the camera's entity is drawn this frame (interpolated), {x, y, z}. */
+    double[] getRenderPos(float tickDelta);
+
+    /** This frame's world model-view and projection matrices (16 floats each, column-major). */
+    java.nio.FloatBuffer getModelViewMatrix();
+
+    java.nio.FloatBuffer getProjectionMatrix();
+
+    /** Leaves the current world (if any) and connects to a multiplayer server. */
+    void joinServer(String address);
+
+    /** Resizes the game's framebuffer and GUI after the window changed size (borderless fullscreen). */
+    void resizeGame(int width, int height);
+
     // ---- options ----
+
+    int getMaxFps();
+
+    void setMaxFps(int fps);
+
+    /** 0 = all, 1 = decreased, 2 = minimal. */
+    int getParticles();
+
+    void setParticles(int level);
+
+    boolean getEntityShadows();
+
+    void setEntityShadows(boolean on);
+
 
     float getGamma();
 

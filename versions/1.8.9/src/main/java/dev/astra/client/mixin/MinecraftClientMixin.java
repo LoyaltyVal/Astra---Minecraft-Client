@@ -15,4 +15,15 @@ public abstract class MinecraftClientMixin {
     private void astra$onTick(CallbackInfo ci) {
         Astra.get().onTick();
     }
+
+    /** F11: borderless fullscreen instead of exclusive fullscreen while that module is on. */
+    @Inject(method = "toggleFullscreen", at = @At("HEAD"), cancellable = true)
+    private void astra$borderless(CallbackInfo ci) {
+        dev.astra.client.module.impl.BorderlessModule borderless =
+                Astra.get().getModules().get(dev.astra.client.module.impl.BorderlessModule.class);
+        if (borderless != null && (borderless.isEnabled() || borderless.isActive())) {
+            borderless.toggle11();
+            ci.cancel();
+        }
+    }
 }

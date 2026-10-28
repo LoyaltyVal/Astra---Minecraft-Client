@@ -41,6 +41,12 @@ One app for Minecraft 1.8.9 and 1.7.10. Sign in, press Launch, and your HUD, zoo
 
 **Capes and wings from your own art.** Any picture becomes a cape, and a single wing becomes a flapping pair.
 
+**Radio.** Listen to internet radio while you play: Right Shift → MODS → **Radio** → **OPEN**. Pick a station, set the volume, or paste any MP3 stream (or a `.pls` / `.m3u` link). The song title shows on the HUD, music keeps playing when you close the menu, and it can pick up where you left off next launch. Stations come from your Astra server (`radioStations` in `server/config.json`); the built-in list is SomaFM and Radio Paradise.
+
+**Shortcuts.** Friends is part of the client, not a mod: it has its own button in the top-right corner of the HUD editor (Right Shift), with how many friends are online and a red badge for messages and requests, as well as **Shift + Tab**. **Quick Join** is the Friends menu's **Servers** tab: favourite servers (number keys 1-9), recently played ones, and how many friends are on each. Waypoints, Screenshots and Radio are mods with an **OPEN** button on their cards, and the title screen has Quick Join, Friends and Screenshots. Favourite servers, waypoints and starred screenshots are kept in `%APPDATA%\.astra\data`, so 1.8.9 and 1.7.10 share them.
+
+**Friends and emotes.** Press **Shift + Tab** in game for your friends: see what server they're on, message them and join them in one click. Hold **B** for the emote wheel; every Astra player sees your emote. The same friends show in the app and on the website.
+
 ### Built-in features
 
 | Feature | What it does | Default |
@@ -59,6 +65,21 @@ One app for Minecraft 1.8.9 and 1.7.10. Sign in, press Launch, and your HUD, zoo
 | Ping / Speed | Latency to the server; blocks per second | Off |
 | Clock / Memory | Local time; RAM use | Off |
 | Fullbright | Full brightness; restores your gamma when turned off | Off |
+| Pot Counter | Healing potions left in your inventory | Off |
+| 1.7 Animations | Block-hitting, 1.7 eating, drinking and bow, red armor when hit, smooth sneaking (1.8.9) | On |
+| No Hurtcam | Turns off the screen shake when you take damage | Off |
+| No Enchant Glint | Hides the glint on items, armor or both | Off |
+| Chat | Keeps up to 5000 lines of chat to scroll back through; stacks repeated messages as "(x3)" | On |
+| Auto Text | Up to 6 hotkeys that send a message or command (e.g. F6 = `/play duels_classic_duel`) | On |
+| Emotes | Hold **B** for a wheel of 10 emotes that every Astra player sees | On |
+| Auto GG | Says "gg" (or your own message, plus an optional second line) when a game ends. Spots end-of-game lines on Hypixel and most minigame servers, never what players type; add your own triggers | Off |
+| Waypoints | **M** opens your waypoints, **N** drops one where you stand. Markers show on screen with distance and point to ones off screen; dying leaves a Death waypoint. Saved per server and world | On |
+| Radio | Internet radio while you play (OPEN on its card): stations, volume, your own stream links. The current song shows on your HUD | On |
+| Screenshot Manager | Browse screenshots as thumbnails, star favourites, copy to the clipboard, open, show in folder, rename and delete | On |
+| Performance | Lower FPS when the game is in the background, no fog, fewer particles, no entity shadows | On |
+| Borderless Fullscreen | F11 goes borderless instead of exclusive fullscreen | On |
+| Menu Background | Astra's background on the title screen, or your own picture from `%APPDATA%\.astra\backgrounds` | On |
+| Client Settings | Accent color, no heart flashing, centered inventory, your own nametag in F5 | On |
 
 Astra only includes visual and quality-of-life features. There's no reach, autoclicker or x-ray, and there never will be.
 
@@ -79,7 +100,9 @@ Astra only includes visual and quality-of-life features. There's no reach, autoc
 1. Download the installer from [Releases](../../releases) and run it.
 2. Open **Astra Launcher** and sign in with Microsoft.
 3. Pick **1.8.9** or **1.7.10** and press **Launch**. The first launch downloads the game, which takes a few minutes.
-4. In game, press **Right Shift** to open the Astra menu.
+4. In game, press **Right Shift** to open the Astra menu (it opens on the HUD editor; the centre **Mods** button opens the menu). **Shift + Tab** opens Friends and **B** opens the emote wheel.
+
+Several Microsoft accounts can be saved: click **Switch account** under your name on the Play tab, or manage them all in **Settings → Accounts**. Each account keeps its own Astra sign-in, so switching is instant. If Microsoft's sign-in for an account expires, it's marked **Sign in again**. Close Minecraft before switching. Resource packs can sit in sub-folders of `resourcepacks` (for example `resourcepacks\PvP\…`) and still show up in game. Your keybinds and settings come from your normal `.minecraft`.
 
 | Where | What's there |
 |---|---|
@@ -135,9 +158,9 @@ npm test                             # API tests
 | **Owner** | Everything, including making other Owners |
 | **Admin** | Everything below, plus upload, edit and delete cosmetics and change ranks below Admin |
 | **Developer** | Everything below, plus give and take cosmetics |
-| **Moderator** | Open the admin panel, ban and unban players |
+| **Moderator** | Open the admin panel, ban and unban players, approve or reject player uploads |
 | **Media** | A tag in game and a spot on the Team page |
-| **Player** | Wear free cosmetics and ones they're given |
+| **Player** | Wear free cosmetics, ones they're given, and their own approved uploads |
 
 Every staff action is recorded in the admin panel's **Activity** tab. Ranks and permissions are defined in [`server/src/services/Ranks.js`](server/src/services/Ranks.js).
 
@@ -152,13 +175,50 @@ Every staff action is recorded in the admin panel's **Activity** tab. Ranks and 
 | `owners` | `ASTRA_OWNERS` | Minecraft names that are always Owner (comma-separated in the env var) |
 | `downloadUrl` | `ASTRA_DOWNLOAD_URL` | Where the website's Download buttons point (e.g. a GitHub Release) |
 | `dataDir` | `ASTRA_DATA_DIR` | Where players, cosmetics and images are stored (default `data/`) |
-| `devAuth` | `ASTRA_DEV_AUTH` | **Testing only:** skips the Mojang check, so anyone can claim any name |
+| `devAuth` | `ASTRA_DEV_AUTH` | **Testing only:** skips the Mojang check, so anyone can claim any name. The server refuses to start with it on a public address |
+| `radioStations` | | The in-game radio's stations: `[{ "id", "name", "genre", "url" }]` with MP3 stream URLs. Empty = built-in list |
+| `playerUploads` | | Let players upload their own capes and wings for staff to review (default `true`) |
+| `trustProxy` | `ASTRA_TRUST_PROXY` | Behind a tunnel or reverse proxy: rate limits use each player's real address (set automatically by `host`) |
 
-To let friends join, host it somewhere with HTTPS (a small VPS behind Caddy or nginx, Railway, Fly.io and so on), set `publicUrl`, and have everyone put that address in the app's settings. Back up the `data/` folder.
+### Put your server online (your PC + Cloudflare Tunnel)
+
+Players' games and apps need to reach your server over the internet. Cloudflare Tunnel does that for free, with HTTPS, without opening ports on your router or showing your home IP. Players can only connect while your PC is on and the window is open.
+
+**Try it today (test address):** double-click **`Host Astra Online.bat`**. The first time it downloads `cloudflared` (about 50 MB) into `tools/bin`, makes sure `devAuth` is off, then starts the server and prints an address like `https://some-random-words.trycloudflare.com`. Friends put that address in the app under **Settings → Astra server**. The address changes every time you run it, so it's only for testing.
+
+**Permanent address (recommended for real players):**
+
+1. Get a domain and add it to a free Cloudflare account (cheap domains are about $10 a year at Cloudflare Registrar, or move one you own to Cloudflare's nameservers).
+2. Double-click **`Set Up Permanent Address.bat`** and type an address such as `play.yourdomain.com`. A browser opens once to sign in to Cloudflare. It creates the tunnel, points the address at it and sets `publicUrl` in `server/config.json`.
+3. Run **`Build Installer.bat`**. The installer now points players at your address, and the website's **Download** button serves it (`https://play.yourdomain.com/download/Astra-Setup.exe`).
+4. From then on, run **`Host Astra Online.bat`** whenever you want to be online.
+
+**Being the Owner:** keep your Minecraft name in `owners`. Make trusted friends Moderators (they review uploads and ban) or Admins from the admin panel's **Players** tab. You can add a player by name before they've joined.
+
+**Back up `server/data/`** now and then. It holds every player, cosmetic, friend list and message. If you later move to a VPS, copy `server/` (with `data/` and `config.json`) and run the same commands there.
+
+### Or: a free DuckDNS address (no domain to buy)
+
+[DuckDNS](https://www.duckdns.org) gives you a free permanent name like `astraclient.duckdns.org` that follows your home internet. Unlike the tunnel, players connect straight to your PC, so you forward one port on your router and players can see your home IP.
+
+1. Sign in at duckdns.org, add a subdomain and copy your token.
+2. Double-click **`Set Up DuckDNS.bat`** and enter the subdomain, the token and a port (Enter for 443). It downloads [Caddy](https://caddyserver.com) into `tools/bin`, which gets a free HTTPS certificate through DuckDNS, and sets `publicUrl` to `https://yourname.duckdns.org`.
+3. In your router, forward **TCP 443** (or the port you picked) to this PC. The script shows the PC's local IP.
+4. Run **`Build Installer.bat`**, then **`Host Astra Online.bat`** whenever you want to be online. It also keeps DuckDNS updated if your home IP changes.
+
+Test from your phone on mobile data: many routers can't reach their own public address from inside the house. If nothing connects at all, your internet provider may block the port (try 8443) or use CGNAT (then use the Cloudflare Tunnel instead). Running `Set Up Permanent Address.bat` later switches back to the tunnel.
+
+### Player uploads
+
+Signed-in players can upload their own cape or wings on the website's **Account** page (or from the app: **Cosmetics → Upload your own**). Uploads go into the admin panel's **Uploads** tab. Moderators and up approve them (the player can then wear it, and only they can) or reject them with a reason (the image is deleted). Each player can have 3 uploads waiting and keep 10 approved ones, with a 2 MB image limit. Turn uploads off with `"playerUploads": false`.
 
 ## Players and Discord
 
 **Find players.** The website's **Players** page lists everyone in game right now and the server they're on, with a search box (Enter opens any player's profile). Profiles and the Team page show "Playing on …" too. Players can hide their server in game with **Right Shift → Cosmetics → Options → Share My Server**. Raw IP addresses and LAN servers are always shown as "a private server".
+
+**Friends.** Friends, requests and private messages live on the Astra server, so they're the same in game (**Shift + Tab**), in the app's **Friends** tab and on the website's **Friends** page. Friends who are on a multiplayer server get a **Join** button in game. Everything arrives instantly over a WebSocket (`/api/live`): messages, friend requests, friends coming online and emotes. If the connection drops, the game, app and website reconnect by themselves and fall back to checking every few seconds meanwhile. Cloudflare Tunnel and Caddy (DuckDNS) both carry WebSockets, so nothing extra is needed when hosting.
+
+**Your account page.** On the website, **Account** lets players write a bio for their profile, hide their server from everyone, turn friend requests off and link their Discord account. The website is opened already signed in from the app (Cosmetics → Open on website, or Friends → Messages on website). The **Admin** link only shows for staff (Moderator and up).
 
 **Discord.** Everything is optional and set in `server/config.json`:
 
@@ -167,6 +227,7 @@ To let friends join, host it somewhere with HTTPS (a small VPS behind Caddy or n
 | `discordInvite` | Adds a Discord button to the website | Discord: right-click your server → Invite People → copy a link that never expires |
 | `discordWebhook` | Posts new players and every staff action (ranks, bans, gifts, uploads) to a channel | Channel settings → Integrations → Webhooks → New Webhook → Copy Webhook URL |
 | `discordClientId` | Shows "Minecraft 1.8.9 · On mc.hypixel.net" on players' Discord profiles while they play | [discord.com/developers](https://discord.com/developers/applications) → New Application, name it **Astra Client** → copy the Application ID. Under Rich Presence → Art Assets, upload your logo with the name `astra` |
+| `discordClientSecret` | Lets players link their Discord on the Account page (needs `discordClientId` too) | Same application → OAuth2 → Reset Secret → copy it. Under OAuth2 → Redirects add `<publicUrl>/api/discord/callback`, e.g. `http://localhost:8787/api/discord/callback` |
 
 Players can turn the Discord status off in the app's **Settings → Discord status**.
 
@@ -179,10 +240,13 @@ Double-click **`Start Astra.bat`** in the project folder. The first time, it ins
 | Script | What it does |
 |---|---|
 | `Start Astra.bat` | Set up if needed, build, start the server, open the app |
-| `Start Server Only.bat` | Just the server (for hosting) |
+| `Start Server Only.bat` | Just the server, on this PC only |
+| `Host Astra Online.bat` | The server plus a Cloudflare Tunnel, so players anywhere can connect |
+| `Set Up Permanent Address.bat` | One-time setup of `https://play.yourdomain.com` for the tunnel |
+| `Set Up DuckDNS.bat` | One-time setup of a free `https://yourname.duckdns.org` address (needs a router port forward) |
 | `Build Installer.bat` | Builds the client and a Windows installer for players in `launcher/dist`. Set `publicUrl` in `server/config.json` to your hosted server first: the installer points players there |
 
-The same commands work anywhere with `node tools/astra.js [start|server|build|installer]`.
+The same commands work anywhere with `node tools/astra.js [start|server|build|installer|host|address|duckdns]`.
 
 ### Prerequisites
 
@@ -265,6 +329,8 @@ docs/images/             Screenshots for this README
 - [x] Astra Launcher with Microsoft sign-in and automatic setup
 - [x] Capes and wings from your own images
 - [x] Astra server: cosmetics everyone sees, ranks, website and admin panel
+- [x] Friends, private messages and emotes (game, app and website)
+- [x] Account switcher, account page and Discord linking
 - [ ] Launcher auto-update (electron-updater with GitHub Releases)
 - [ ] Code-signed installer, so Windows SmartScreen doesn't warn
 - [ ] macOS and Linux builds

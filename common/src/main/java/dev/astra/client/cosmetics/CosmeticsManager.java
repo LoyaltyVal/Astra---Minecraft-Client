@@ -134,6 +134,8 @@ public final class CosmeticsManager {
     private final Map<String, Boolean> loading = new ConcurrentHashMap<String, Boolean>();
     private final Map<String, String> failed = new ConcurrentHashMap<String, String>();
     private final Map<UUID, String> keys = new ConcurrentHashMap<UUID, String>();
+    /** Emotes playing right now: player key -> {emote id, start time in ms}. */
+    private final Map<String, Object[]> emotes = new ConcurrentHashMap<String, Object[]>();
 
     private volatile String selfUuid;
     private volatile List<String> owned = Collections.emptyList();
@@ -247,7 +249,8 @@ public final class CosmeticsManager {
                 continue;
             }
             PlayerInfo known = players.get(id);
-            if (known == null || now - known.fetched > LOOKUP_TTL) {
+            // Astra players are re-checked every round (to catch emotes); others once a minute.
+            if (known == null || now - known.fetched > (known.astra ? 1500L : LOOKUP_TTL)) {
                 wanted.add(id);
             }
             if (wanted.size() >= BATCH) {
@@ -319,6 +322,18 @@ public final class CosmeticsManager {
                 if (found.has(id)) {
                     JsonObject o = found.getAsJsonObject(id);
                     players.put(id, player(o, string(o, "cape"), string(o, "wings")));
+                    if (o.has("emote") && o.get("emote").isJsonObject()) {
+                        JsonObject e = o.getAsJsonObject("emote");
+                        String emoteId = string(e, "id");
+                        long age = e.has("ageMs") ? e.get("ageMs").getAsLong() : 0L;
+                        Object[] current = emotes.get(id);
+                        long start = now - age;
+                        // Same emote already playing: keep our start time so it doesn't jump.
+                        if (emoteId != null && (current == null || !emoteId.equals(current[0])
+                                || Math.abs((Long) current[1] - start) > 1500)) {
+                            emotes.put(id, new Object[]{emoteId, start});
+                        }
+                    }
                 } else {
                     players.put(id, PlayerInfo.notAstra(now));
                 }
@@ -341,6 +356,73 @@ public final class CosmeticsManager {
                 it.remove();
             }
         }
+    }
+
+    // ------------------------------------------------------------------ emotes
+
+    /** Plays an emote on you right away and tells the server, so other Astra players see it too. */
+    public void playEmote(final String id) {
+        if (selfUuid != null) {
+            emotes.put(selfUuid, new Object[]{id, System.currentTimeMillis()});
+        }
+        if (api == null || !api.hasToken()) {
+            return;
+        }
+        net.execute(new Runnable() {
+            @Override
+            public void run() {
+                JsonObject body = new JsonObject();
+                body.addProperty("emote", id);
+                try {
+                    api.postJson("/api/me/emote", body.toString());
+                } catch (Exception ignored) {
+                    // others just won't see this one
+                }
+            }
+        });
+    }
+
+    /** Someone started an emote (pushed over the live connection, so it shows without delay). */
+    public void emoteStarted(String uuid, String emoteId) {
+        String id = normalize(uuid);
+        if (id != null && emoteId != null && !id.equals(selfUuid)) {
+            emotes.put(id, new Object[]{emoteId, System.currentTimeMillis()});
+        }
+    }
+
+    /** The emote a player is doing and how far into it (seconds), or null. */
+    public Object[] getEmote(UUID uuid) {
+        return emoteOf(key(uuid));
+    }
+
+    /** True while your own emote is playing. */
+    public boolean isSelfEmoting() {
+        return selfUuid != null && emoteOf(selfUuid) != null;
+    }
+
+    private Object[] emoteOf(String id) {
+        if (id == null) {
+            return null;
+        }
+        Object[] e = emotes.get(id);
+        if (e == null) {
+            return null;
+        }
+        float t = (System.currentTimeMillis() - (Long) e[1]) / 1000f;
+        if (t > dev.astra.client.social.Emotes.LENGTH + 0.5f) {
+            emotes.remove(id);
+            return null;
+        }
+        return new Object[]{e[0], t};
+    }
+
+    public String getSelfUuid() {
+        return selfUuid;
+    }
+
+    /** The Astra server connection (shared with friends), or null when not started from the app. */
+    public AstraApiClient getApi() {
+        return api;
     }
 
     // ------------------------------------------------------------------ the cosmetics page

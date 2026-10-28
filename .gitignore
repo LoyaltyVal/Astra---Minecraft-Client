@@ -14,3 +14,8 @@ launcher/node_modules/
 launcher/dist/
 launcher/mods/
 launcher/build-config.json
+astra-last-run.log
+
+# hosting
+tools/bin/
+server/downloads/

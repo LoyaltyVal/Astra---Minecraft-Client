@@ -7,6 +7,9 @@ contextBridge.exposeInMainWorld('astra', {
   account: () => ipcRenderer.invoke('auth:get'),
   login: () => ipcRenderer.invoke('auth:login'),
   logout: () => ipcRenderer.invoke('auth:logout'),
+  accounts: () => ipcRenderer.invoke('auth:list'),
+  switchAccount: (id) => ipcRenderer.invoke('auth:switch', id),
+  removeAccount: (id) => ipcRenderer.invoke('auth:remove', id),
 
   settings: () => ipcRenderer.invoke('settings:get'),
   saveSettings: (patch) => ipcRenderer.invoke('settings:set', patch),
@@ -20,7 +23,10 @@ contextBridge.exposeInMainWorld('astra', {
   server: {
     account: () => ipcRenderer.invoke('astra:account'),
     equip: (type, id) => ipcRenderer.invoke('astra:equip', type, id),
-    openWebsite: () => ipcRenderer.invoke('astra:openWebsite')
+    openWebsite: (next) => ipcRenderer.invoke('astra:openWebsite', next),
+    friends: () => ipcRenderer.invoke('astra:friends'),
+    live: () => ipcRenderer.invoke('astra:live'),
+    friendAction: (action, body) => ipcRenderer.invoke('astra:friendAction', action, body)
   },
 
   onState: (fn) => ipcRenderer.on('launch:state', (_e, data) => fn(data)),

@@ -19,12 +19,17 @@ sourceSets {
 
 repositories {
     // Loom adds Mojang, Fabric and Legacy Fabric repositories automatically.
+    mavenCentral()
 }
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings(legacy.yarn(project.minecraft_version, project.yarn_build))
     modImplementation "net.fabricmc:fabric-loader:${rootProject.loader_version}"
+
+    // MP3 decoder for the radio. "include" packs it inside Astra's jar (Fabric loads it from there).
+    implementation "javazoom:jlayer:1.0.1"
+    include "javazoom:jlayer:1.0.1"
 }
 
 // Loom's runClient task uses versions/<mc>/run as the game folder, so the two

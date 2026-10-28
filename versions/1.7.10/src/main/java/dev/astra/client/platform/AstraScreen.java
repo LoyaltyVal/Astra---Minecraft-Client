@@ -21,6 +21,16 @@ public final class AstraScreen extends Screen {
         ui.frame(this.width, this.height, mouseX, mouseY, tickDelta);
     }
 
+    /** Typed characters go to the Astra screen; Escape still closes it unless it's editing text. */
+    @Override
+    protected void keyPressed(char character, int keyCode) {
+        boolean escapeUsed = ui.usesEscape();
+        ui.charTyped(character, keyCode);
+        if (keyCode != 1 || !escapeUsed) {
+            super.keyPressed(character, keyCode);
+        }
+    }
+
     @Override
     public boolean shouldPauseGame() {
         return false;

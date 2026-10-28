@@ -17,6 +17,7 @@ const RANKS = {
 const PERMISSIONS = {
   'admin.view': 50,        // open the admin panel, see players and the activity log
   'players.ban': 50,       // ban and unban
+  'uploads.review': 50,    // approve or reject capes and wings that players upload
   'cosmetics.grant': 70,   // give and take cosmetics
   'cosmetics.manage': 80,  // upload, edit and delete cosmetics
   'ranks.set': 80          // change ranks (only below your own, unless you're an Owner)

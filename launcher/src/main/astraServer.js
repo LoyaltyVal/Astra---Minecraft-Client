@@ -19,15 +19,29 @@ function serverUrl() {
   return String(store.get().serverUrl || '').replace(/\/+$/, '');
 }
 
+/** Astra sessions, one per Minecraft account and server, so switching accounts is instant. */
 function file() {
-  return path.join(app.getPath('userData'), 'astra-session.json');
+  return path.join(app.getPath('userData'), 'astra-sessions.json');
 }
 
-function readSession() {
+function readAll() {
   try {
-    const s = JSON.parse(fs.readFileSync(file(), 'utf8'));
-    const token = s.encrypted ? safeStorage.decryptString(Buffer.from(s.token, 'base64')) : s.token;
-    return { server: s.server, uuid: s.uuid, token };
+    return JSON.parse(fs.readFileSync(file(), 'utf8')) || {};
+  } catch {
+    return {};
+  }
+}
+
+function writeAll(data) {
+  fs.mkdirSync(path.dirname(file()), { recursive: true });
+  fs.writeFileSync(file(), JSON.stringify(data));
+}
+
+function readSession(server, uuid) {
+  const s = readAll()[`${server}|${uuid}`];
+  if (!s) return null;
+  try {
+    return { token: s.encrypted ? safeStorage.decryptString(Buffer.from(s.token, 'base64')) : s.token };
   } catch {
     return null;
   }
@@ -35,13 +49,22 @@ function readSession() {
 
 function writeSession(server, uuid, token) {
   const enc = safeStorage.isEncryptionAvailable();
-  const data = { server, uuid, encrypted: enc, token: enc ? safeStorage.encryptString(token).toString('base64') : token };
-  fs.mkdirSync(path.dirname(file()), { recursive: true });
-  fs.writeFileSync(file(), JSON.stringify(data));
+  const data = readAll();
+  data[`${server}|${uuid}`] = { encrypted: enc, token: enc ? safeStorage.encryptString(token).toString('base64') : token };
+  writeAll(data);
 }
 
-function forget() {
-  fs.rmSync(file(), { force: true });
+/** Forgets the Astra sessions of one account (or every account when uuid is omitted). */
+function forget(uuid) {
+  fs.rmSync(path.join(app.getPath('userData'), 'astra-session.json'), { force: true }); // pre-switcher file
+  if (!uuid) {
+    fs.rmSync(file(), { force: true });
+    return;
+  }
+  const id = String(uuid).replace(/-/g, '');
+  const data = readAll();
+  for (const k of Object.keys(data)) if (k.endsWith(`|${id}`)) delete data[k];
+  writeAll(data);
 }
 
 async function request(method, p, { token, body } = {}) {
@@ -104,9 +127,9 @@ async function signIn() {
 async function session() {
   const account = auth.getAccount();
   if (!account) throw new Error('Sign in with Microsoft first.');
-  const saved = readSession();
   const uuid = String(account.id).replace(/-/g, '');
-  if (saved && saved.server === serverUrl() && saved.uuid === uuid) {
+  const saved = readSession(serverUrl(), uuid);
+  if (saved) {
     try {
       const { player } = await request('GET', '/api/me', { token: saved.token });
       return { token: saved.token, player };
@@ -154,15 +177,38 @@ async function equip(type, id) {
 }
 
 /** Opens the website signed in (the admin panel for staff, your profile for everyone else). */
-async function openWebsite() {
+async function openWebsite(next) {
   const { token } = await session();
-  const { url } = await request('POST', '/api/auth/web-code', { token });
+  let { url } = await request('POST', '/api/auth/web-code', { token });
+  if (typeof next === 'string' && /^\/[a-z][a-z0-9/_#-]*$/i.test(next)) url += `&next=${encodeURIComponent(next)}`;
   const base = new URL(serverUrl());
   const target = new URL(url);
   if (target.origin !== base.origin && target.hostname !== base.hostname) {
     throw new Error('The server sent an unexpected sign-in link.');
   }
   await shell.openExternal(target.toString());
+}
+
+/** For the launcher's live connection (WebSocket): the server address and this account's token. */
+async function live() {
+  const { token } = await session();
+  const base = serverUrl();
+  return { url: base.replace(/^http/, 'ws') + '/api/live', token };
+}
+
+// ---------- friends (same lists the game and website show) ----------
+
+async function friends() {
+  const { token } = await session();
+  return request('GET', '/api/friends', { token });
+}
+
+async function friendAction(action, body) {
+  const allowed = { request: '/api/friends/request', accept: '/api/friends/accept', remove: '/api/friends/remove' };
+  if (!allowed[action]) throw new Error('Unknown friend action.');
+  const { token } = await session();
+  await request('POST', allowed[action], { token, body });
+  return friends();
 }
 
 /** For the game: -Dastra.api / -Dastra.token. Never fails; without a session others' cosmetics still show. */
@@ -187,10 +233,11 @@ async function meta() {
 
 /** Where the game last said you are: { server, version, hidden } or null (from /api/me). */
 async function playing() {
-  const saved = readSession();
-  if (!saved || saved.server !== serverUrl()) return null;
+  const account = auth.getAccount();
+  const saved = account && readSession(serverUrl(), String(account.id).replace(/-/g, ''));
+  if (!saved) return null;
   const { player } = await request('GET', '/api/me', { token: saved.token });
   return player.playing || null;
 }
 
-module.exports = { account, equip, openWebsite, gameArgs, forget, serverUrl, meta, playing };
+module.exports = { account, equip, openWebsite, friends, friendAction, live, gameArgs, forget, serverUrl, meta, playing };

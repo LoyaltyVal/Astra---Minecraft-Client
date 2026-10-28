@@ -13,8 +13,8 @@ public abstract class InGameHudMixin {
 
     /** InGameHud#render (MCP: GuiIngame#renderGameOverlay). Draw Astra's HUD on top. */
     @Inject(method = "render", at = @At("TAIL"))
-    private void astra$onRender(CallbackInfo ci) {
-        Astra.get().onRenderHud();
+    private void astra$onRender(float tickDelta, boolean screenOpen, int mouseX, int mouseY, CallbackInfo ci) {
+        Astra.get().onRenderHud(tickDelta);
     }
 
     /** method_4943 = the sidebar renderer (MCP: GuiIngame#func_96136_a), unnamed in 1.7.10 yarn. Skipped while Astra's Scoreboard mod draws it instead. */

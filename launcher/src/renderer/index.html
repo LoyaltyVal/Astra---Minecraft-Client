@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; img-src 'self' https://mc-heads.net data:; style-src 'self'; script-src 'self'">
+        content="default-src 'self'; img-src 'self' https://mc-heads.net data:; style-src 'self'; script-src 'self'; connect-src 'self' ws: wss:">
   <title>Astra Launcher</title>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -32,6 +32,11 @@
         <svg viewBox="0 0 24 24"><path d="M8 3l-5 3 2 5 2-1v11h10V10l2 1 2-5-5-3c-.5 1.6-2.1 2.6-4 2.6S8.5 4.6 8 3z"/></svg>
         <span>Cosmetics</span>
       </button>
+      <button class="nav" data-view="friends" title="Friends">
+        <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 20c.6-3.6 3.1-5.6 6.2-5.6s5.6 2 6.2 5.6"/><circle cx="17" cy="9" r="2.6"/><path d="M16.5 14.5c2.6.1 4.3 1.8 4.8 4.6"/></svg>
+        <span>Friends</span>
+        <i class="nav-badge" id="friends-badge" hidden></i>
+      </button>
       <button class="nav" data-view="logs" title="Logs">
         <svg viewBox="0 0 24 24"><path d="M5 5h14M5 10h14M5 15h9M5 20h6"/></svg>
         <span>Logs</span>
@@ -54,19 +59,19 @@
           <div class="hero">
             <p class="eyebrow">PvP client for Minecraft 1.8.9 &amp; 1.7.10</p>
             <h1>Astra Client</h1>
-            <p class="lede">18 mods, a drag-and-drop HUD editor and your own capes and wings.
+            <p class="lede">29 mods, a drag-and-drop HUD editor and your own capes and wings.
               Press <kbd>Right Shift</kbd> in game.</p>
 
             <div class="versions" id="versions" role="radiogroup" aria-label="Minecraft version"></div>
           </div>
 
           <aside class="card news" aria-label="What's new">
-            <p class="card-eyebrow">What's new &middot; 0.3</p>
+            <p class="card-eyebrow">What's new</p>
             <ul>
-              <li><b>Astra accounts:</b> your cosmetics and rank follow you</li>
-              <li><b>Everyone sees cosmetics:</b> capes and wings show on every Astra player</li>
-              <li><b>Rank tags</b> next to staff names in game</li>
-              <li>A website with a catalog, team page and profiles</li>
+              <li><b>Friends:</b> Shift + Tab in game to chat and join their server</li>
+              <li><b>Emotes:</b> hold B for the wheel; every Astra player sees them</li>
+              <li><b>1.7 animations</b>, Pot Counter, Auto Text, No Hurtcam and more</li>
+              <li><b>Account switcher</b> and your settings from .minecraft</li>
             </ul>
           </aside>
         </div>
@@ -78,8 +83,9 @@
             <div class="account-text">
               <span class="account-name" id="account-name">Not signed in</span>
               <span class="account-rank" id="account-rank" hidden></span>
-              <button class="link" id="account-action">Sign in with Microsoft</button>
+              <button class="link" id="account-action" aria-haspopup="menu" aria-expanded="false">Sign in with Microsoft</button>
             </div>
+            <div class="account-menu" id="account-menu" role="menu" hidden></div>
           </div>
 
           <div class="launch-area">
@@ -101,6 +107,7 @@
           </div>
           <div class="actions">
             <button class="ghost" id="cos-refresh">Refresh</button>
+            <button class="ghost" id="cos-upload">Upload your own</button>
             <button class="primary" id="cos-web">Open on website</button>
           </div>
         </div>
@@ -112,6 +119,26 @@
 
         <p class="hint" id="cos-hint"></p>
         <div class="cos-grid" id="cos-grid"></div>
+      </section>
+
+      <!-- FRIENDS -->
+      <section class="view" id="view-friends">
+        <div class="view-head">
+          <div>
+            <h2>Friends</h2>
+            <p class="sub">The same friends you have in game (Shift + Tab) and on the website.</p>
+          </div>
+          <div class="actions">
+            <button class="ghost" id="friends-refresh">Refresh</button>
+            <button class="primary" id="friends-web">Messages on website</button>
+          </div>
+        </div>
+        <form class="friend-add" id="friend-add">
+          <input id="friend-name" placeholder="Add a friend by Minecraft name" maxlength="16" autocomplete="off" spellcheck="false">
+          <button class="primary" type="submit">Send request</button>
+        </form>
+        <div id="friend-requests"></div>
+        <div class="friend-list" id="friend-list"></div>
       </section>
 
       <!-- LOGS -->
@@ -134,6 +161,15 @@
       <section class="view" id="view-settings">
         <div class="view-head"><div><h2>Settings</h2></div></div>
 
+        <h3 class="settings-title">Accounts</h3>
+        <div class="settings accounts-box">
+          <div class="accounts-list" id="accounts-list"></div>
+          <div class="accounts-actions">
+            <button class="ghost" id="accounts-add">+ Add a Microsoft account</button>
+          </div>
+        </div>
+
+        <h3 class="settings-title">Game and app</h3>
         <div class="settings">
           <div class="setting">
             <div>

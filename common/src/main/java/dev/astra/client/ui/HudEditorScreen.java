@@ -74,6 +74,8 @@ public final class HudEditorScreen extends UiScreen {
         Render.rect(bx, by + 21, bw, 1, Theme.accent());
         Render.textCenteredScaled("MODS", width / 2f, by + 5, 1.5f, Theme.TEXT, true);
 
+        drawFriendsButton(mx, my);
+
         Render.textCentered("Drag to move  |  Scroll to resize  |  Right-click for settings  |  Esc to exit",
                 width / 2f, height - 14, Theme.SUBTEXT, true);
     }
@@ -120,8 +122,46 @@ public final class HudEditorScreen extends UiScreen {
         m.setPosition(Math.max(0, Math.min(x, width - w)), Math.max(0, Math.min(y, height - h)));
     }
 
+    /** Friends is part of the client, not a mod: it gets its own button in the corner. */
+    private String friendsLabel() {
+        dev.astra.client.social.SocialManager social = Astra.get().getSocial();
+        int online = 0;
+        for (dev.astra.client.social.SocialManager.Friend f : social.getFriends()) {
+            if (f.playing) {
+                online++;
+            }
+        }
+        return "Friends" + (online > 0 ? "  " + online + " online" : "");
+    }
+
+    private int[] friendsBox() {
+        int w = Panels.pillWidth(friendsLabel()) + 6;
+        return new int[]{width - w - 6, 6, w, 18};
+    }
+
+    private void drawFriendsButton(int mx, int my) {
+        int[] b = friendsBox();
+        boolean hover = dragging == null && Render.inside(mx, my, b[0], b[1], b[2], b[3]);
+        Render.round(b[0], b[1], b[2], b[3], 9, hover ? Colors.withAlpha(Theme.accent(), 0xF0) : Colors.withAlpha(Theme.accent(), 0xB0));
+        Render.textCentered(friendsLabel(), b[0] + b[2] / 2f, b[1] + 5, Theme.TEXT, true);
+        dev.astra.client.social.SocialManager social = Astra.get().getSocial();
+        int badge = social.getTotalUnread() + social.getIncoming().size();
+        if (badge > 0) {
+            String n = badge > 9 ? "9+" : String.valueOf(badge);
+            int bw = Math.max(10, Render.width(n) + 5);
+            Render.round(b[0] - 4, b[1] - 3, bw, 10, 5, 0xFFFF5C7A);
+            Render.textCentered(n, b[0] - 4 + bw / 2f, b[1] - 2, Theme.TEXT, false);
+        }
+        Render.text("Shift + Tab", b[0] + b[2] - Render.width("Shift + Tab"), b[1] + b[3] + 3, 0x88FFFFFF, true);
+    }
+
     @Override
     protected void mouseClicked(int mx, int my, int button) {
+        int[] fb = friendsBox();
+        if (button == 0 && Render.inside(mx, my, fb[0], fb[1], fb[2], fb[3])) {
+            open(new dev.astra.client.social.FriendsScreen());
+            return;
+        }
         HudModule m = moduleAt(mx, my);
         if (m == null) {
             int bw = 80;
@@ -160,8 +200,9 @@ public final class HudEditorScreen extends UiScreen {
 
     @Override
     protected void keyPressed(int keyCode) {
+        // The menu key opens this editor; pressing it again closes it.
         if (keyCode == Astra.MENU_KEY) {
-            open(new ModMenuScreen());
+            close();
         }
     }
 

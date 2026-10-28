@@ -20,6 +20,7 @@ public final class FreelookModule extends Module {
     private final KeySetting key;
     private final ModeSetting mode;
     private final ModeSetting view;
+    private final dev.astra.client.module.setting.BooleanSetting ownNametag;
 
     private boolean active;
     private boolean keyWasDown;
@@ -32,6 +33,7 @@ public final class FreelookModule extends Module {
         key = setting(new KeySetting("Freelook Key", Keyboard.KEY_LMENU));
         mode = setting(new ModeSetting("Mode", "Hold", "Hold", "Toggle"));
         view = setting(new ModeSetting("Camera", "Behind", "Behind", "In Front"));
+        ownNametag = setting(new dev.astra.client.module.setting.BooleanSetting("Show Own Nametag", true));
     }
 
     @Override
@@ -93,6 +95,10 @@ public final class FreelookModule extends Module {
         yaw += dx * 0.15f;
         pitch = Math.max(-90f, Math.min(90f, pitch - dy * 0.15f));
         return true;
+    }
+
+    public boolean showOwnNametag() {
+        return ownNametag.isOn();
     }
 
     public float getYaw() {

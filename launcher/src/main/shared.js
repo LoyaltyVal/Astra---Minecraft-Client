@@ -30,6 +30,76 @@ const PORTABLE_OPTIONS = new Set([
   'soundCategory_ambient'
 ]);
 
+/** Keybinds that exist in 1.7/1.8 and in modern versions (same names, different value format). */
+const PORTABLE_KEYS = [
+  'attack', 'use', 'forward', 'left', 'back', 'right', 'jump', 'sneak', 'sprint', 'drop', 'inventory',
+  'chat', 'playerlist', 'pickItem', 'command', 'screenshot', 'togglePerspective', 'smoothCamera',
+  'fullscreen', 'spectatorOutlines', 'hotbar.1', 'hotbar.2', 'hotbar.3', 'hotbar.4', 'hotbar.5',
+  'hotbar.6', 'hotbar.7', 'hotbar.8', 'hotbar.9'
+].map((k) => `key_key.${k}`);
+
+/** Modern key names (GLFW) → LWJGL 2 key codes used by 1.7/1.8. */
+const KEYBOARD = (() => {
+  const m = {
+    space: 57, 'left.shift': 42, 'right.shift': 54, 'left.control': 29, 'right.control': 157,
+    'left.alt': 56, 'right.alt': 184, tab: 15, enter: 28, escape: 1, backspace: 14, 'grave.accent': 41,
+    minus: 12, equal: 13, 'left.bracket': 26, 'right.bracket': 27, backslash: 43, semicolon: 39,
+    apostrophe: 40, comma: 51, period: 52, slash: 53, 'caps.lock': 58, up: 200, down: 208, left: 203,
+    right: 205, insert: 210, delete: 211, home: 199, end: 207, 'page.up': 201, 'page.down': 209,
+    'keypad.add': 78, 'keypad.subtract': 74, 'keypad.multiply': 55, 'keypad.divide': 181,
+    'keypad.decimal': 83, 'keypad.enter': 156, 'left.win': 219, 'right.win': 220, menu: 221
+  };
+  'qwertyuiop'.split('').forEach((c, i) => { m[c] = 16 + i; });
+  'asdfghjkl'.split('').forEach((c, i) => { m[c] = 30 + i; });
+  'zxcvbnm'.split('').forEach((c, i) => { m[c] = 44 + i; });
+  for (let d = 1; d <= 9; d++) m[String(d)] = 1 + d;
+  m['0'] = 11;
+  for (let f = 1; f <= 10; f++) m[`f${f}`] = 58 + f;
+  m.f11 = 87; m.f12 = 88; m.f13 = 100; m.f14 = 101; m.f15 = 102;
+  [82, 79, 80, 81, 75, 76, 77, 71, 72, 73].forEach((code, n) => { m[`keypad.${n}`] = code; });
+  return m;
+})();
+const KEYBOARD_BACK = Object.fromEntries(Object.entries(KEYBOARD).map(([k, v]) => [v, k]));
+
+/** "key.keyboard.left.shift" → 42, "key.mouse.4" → -97, unknown → 0. Returns null if not understood. */
+function keyToLegacy(value) {
+  if (value === 'key.keyboard.unknown') return '0';
+  const mouse = /^key\.mouse\.(left|right|middle|\d+)$/.exec(value);
+  if (mouse) {
+    const n = { left: 1, right: 2, middle: 3 }[mouse[1]] || Number(mouse[1]);
+    return String(-100 + n - 1);
+  }
+  const kb = /^key\.keyboard\.(.+)$/.exec(value);
+  if (kb && KEYBOARD[kb[1]] !== undefined) return String(KEYBOARD[kb[1]]);
+  return null;
+}
+
+/** 42 → "key.keyboard.left.shift", -97 → "key.mouse.4". Returns null if there's no modern name. */
+function keyToModern(value) {
+  const code = Number(value);
+  if (!Number.isInteger(code)) return null;
+  if (code === 0) return 'key.keyboard.unknown';
+  if (code < 0) {
+    const n = code + 100 + 1;
+    return `key.mouse.${({ 1: 'left', 2: 'right', 3: 'middle' })[n] || n}`;
+  }
+  return KEYBOARD_BACK[code] ? `key.keyboard.${KEYBOARD_BACK[code]}` : null;
+}
+
+/** Values that need fixing up on the way in (1.8 has smaller ranges than modern versions). */
+function toLegacyValue(key, value) {
+  if (key === 'renderDistance') return String(Math.max(2, Math.min(16, Number(value) || 8)));
+  if (key === 'guiScale') return String(Math.max(0, Math.min(3, Number(value) || 0)));
+  if (key === 'maxFps') return String(Math.max(10, Math.min(260, Number(value) || 120)));
+  return value;
+}
+
+/** ...and on the way out (Fullbright sets gamma far above what modern versions accept). */
+function toModernValue(key, value) {
+  if (key === 'gamma') return String(Math.max(0, Math.min(1, Number(value) || 0)));
+  return value;
+}
+
 function minecraftDir() {
   return path.join(app.getPath('appData'), '.minecraft');
 }
@@ -81,16 +151,47 @@ function packsToModern(value, current) {
   }
 }
 
-function copyPortable(from, to, direction) {
+/**
+ * Copies the settings both formats understand. Going out, only `onlyKeys` (the settings that
+ * changed while playing) are written, so Astra never overwrites something you changed in the
+ * official game since.
+ */
+function copyPortable(from, to, direction, onlyKeys) {
   for (const [key, value] of from) {
-    if (!PORTABLE_OPTIONS.has(key)) continue;
+    if (onlyKeys && !onlyKeys.has(key)) continue;
     let v = value;
+    if (PORTABLE_KEYS.includes(key)) {
+      v = direction === 'in' ? keyToLegacy(value) : keyToModern(value);
+      if (v === null) continue;
+      to.set(key, v);
+      continue;
+    }
+    if (!PORTABLE_OPTIONS.has(key)) continue;
     if (key === 'resourcePacks' || key === 'incompatibleResourcePacks') {
       v = direction === 'in' ? packsToLegacy(value) : packsToModern(value, to.get(key) || '["vanilla"]');
       if (v === null) continue;
+    } else {
+      v = direction === 'in' ? toLegacyValue(key, value) : toModernValue(key, value);
     }
     to.set(key, v);
   }
+}
+
+const SNAPSHOT = '.astra-options-snapshot.json';
+
+/** Remembers the settings as they were at launch, to tell later which ones changed while playing. */
+function writeSnapshot(instanceDir, map) {
+  fs.writeFileSync(path.join(instanceDir, SNAPSHOT), JSON.stringify(Object.fromEntries(map)));
+}
+
+function changedSince(instanceDir, map) {
+  let before = {};
+  try {
+    before = JSON.parse(fs.readFileSync(path.join(instanceDir, SNAPSHOT), 'utf8'));
+  } catch {
+    return new Set(map.keys()); // no snapshot: treat everything as changed
+  }
+  return new Set([...map.keys()].filter((k) => before[k] !== map.get(k)));
 }
 
 /** Makes `link` a link to `target`, moving anything already in `link` into `target` first. */
@@ -154,8 +255,9 @@ function prepare(instanceDir, log) {
       const mine = readOptions(target);
       copyPortable(mcOptions, mine, 'in');
       writeOptions(target, mine);
-      log('[Astra] Using your video, sound and resource pack settings from .minecraft.');
+      log('[Astra] Using your keybinds, video, sound and resource pack settings from .minecraft.');
     }
+    writeSnapshot(instanceDir, readOptions(target));
   } catch (e) {
     log(`[Astra] Couldn't read settings from .minecraft: ${e.message}`);
   }
@@ -179,12 +281,15 @@ function save(instanceDir, log) {
     if (!mcOptions.size || !isModernOptions(mcOptions)) {
       fs.copyFileSync(path.join(instanceDir, 'options.txt'), mcFile);
     } else {
-      copyPortable(mine, mcOptions, 'out');
-      writeOptions(mcFile, mcOptions);
+      const changed = changedSince(instanceDir, mine);
+      if (changed.size) {
+        copyPortable(mine, mcOptions, 'out', changed);
+        writeOptions(mcFile, mcOptions);
+      }
     }
   } catch (e) {
     log(`[Astra] Couldn't save settings to .minecraft: ${e.message}`);
   }
 }
 
-module.exports = { prepare, save, minecraftDir };
+module.exports = { prepare, save, minecraftDir, keyToLegacy, keyToModern };

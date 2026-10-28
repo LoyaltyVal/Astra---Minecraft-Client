@@ -4,6 +4,13 @@ const { loadConfig } = require('./config');
 const { App } = require('./App');
 
 const config = loadConfig();
+
+// devAuth trusts whatever name a client sends, so on a public address anyone could sign in as you.
+if (config.devAuth && !/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(config.publicUrl)) {
+  console.error('[astra] Refusing to start: "devAuth" is true but publicUrl is a public address.');
+  console.error('[astra] Set "devAuth": false in server/config.json. Anyone could sign in as the Owner otherwise.');
+  process.exit(1);
+}
 const app = new App(config);
 
 /**

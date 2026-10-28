@@ -108,9 +108,26 @@ handle('app:info', () => ({
 handle('auth:get', () => auth.getAccount());
 handle('auth:login', () => auth.login());
 handle('auth:logout', () => {
-  auth.logout();
-  astraServer.forget();
+  const current = auth.getAccount();
+  const next = auth.logout();
+  if (current) astraServer.forget(current.id);
+  return next;
 });
+handle('auth:list', () => auth.listAccounts());
+handle('auth:switch', (id) => {
+  // The running game keeps the account it started with; switching mid-game would confuse that.
+  if (isRunning()) throw new Error('Close Minecraft before switching accounts.');
+  return auth.switchAccount(String(id));
+});
+handle('auth:remove', (id) => {
+  if (isRunning() && auth.getAccount() && auth.getAccount().id === String(id)) {
+    throw new Error('Close Minecraft before removing the account it\'s using.');
+  }
+  const next = auth.removeAccount(String(id));
+  astraServer.forget(String(id));
+  return next;
+});
+handle('astra:live', () => astraServer.live());
 
 handle('settings:get', () => store.get());
 handle('settings:set', (patch) => store.set(patch || {}));
@@ -133,7 +150,12 @@ handle('app:openLogs', () => shell.openPath(log.dir()));
 
 handle('astra:account', () => astraServer.account());
 handle('astra:equip', (type, id) => astraServer.equip(String(type), id === null ? null : String(id)));
-handle('astra:openWebsite', () => astraServer.openWebsite());
+handle('astra:openWebsite', (next) => astraServer.openWebsite(next));
+handle('astra:friends', () => astraServer.friends());
+handle('astra:friendAction', (action, body) => astraServer.friendAction(String(action), {
+  name: body && body.name ? String(body.name).slice(0, 16) : undefined,
+  uuid: body && body.uuid ? String(body.uuid).slice(0, 40) : undefined
+}));
 
 ipcMain.on('window:minimize', () => win && win.minimize());
 ipcMain.on('window:maximize', () => {

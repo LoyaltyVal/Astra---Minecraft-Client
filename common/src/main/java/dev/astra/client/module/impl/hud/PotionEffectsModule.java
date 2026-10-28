@@ -19,6 +19,7 @@ public final class PotionEffectsModule extends HudModule {
     private final BooleanSetting blink;
     private final ColorSetting nameColor;
     private final ColorSetting timeColor;
+    private final BooleanSetting longAsInfinite;
 
     public PotionEffectsModule() {
         super("Potion Effects", "Active effects with time left.", true, 4, END);
@@ -26,6 +27,7 @@ public final class PotionEffectsModule extends HudModule {
         blink = setting(new BooleanSetting("Blink When Ending", true));
         nameColor = setting(new ColorSetting("Name Color", 0xFFFFFFFF));
         timeColor = setting(new ColorSetting("Time Color", 0xFFB8B8C8));
+        longAsInfinite = setting(new BooleanSetting("Over 10 min = Infinite", true));
     }
 
     private List<HudData.Effect> effects(boolean editor) {
@@ -41,9 +43,14 @@ public final class PotionEffectsModule extends HudModule {
         return e.name + (e.amplifier > 0 && e.amplifier < ROMAN.length ? ROMAN[e.amplifier] : e.amplifier > 0 ? " " + (e.amplifier + 1) : "");
     }
 
-    private static String time(HudData.Effect e) {
-        if (e.durationTicks > 32766) {
-            return "**:**";
+    /** Effects servers give "forever" (lobby speed, night vision...) use huge durations. */
+    private boolean infinite(HudData.Effect e) {
+        return e.durationTicks > 32766 || (longAsInfinite.isOn() && e.durationTicks > 20 * 60 * 10);
+    }
+
+    private String time(HudData.Effect e) {
+        if (infinite(e)) {
+            return "Infinite";
         }
         int seconds = e.durationTicks / 20;
         return (seconds / 60) + ":" + (seconds % 60 < 10 ? "0" : "") + (seconds % 60);
@@ -75,7 +82,7 @@ public final class PotionEffectsModule extends HudModule {
             if (icons.isOn() && e.iconIndex >= 0) {
                 mc().drawEffectIcon(e.iconIndex, 0, y);
             }
-            boolean ending = e.durationTicks < 200 && e.durationTicks <= 32766;
+            boolean ending = e.durationTicks < 200 && !infinite(e);
             boolean hidden = blink.isOn() && ending && (System.currentTimeMillis() / 400) % 2 == 0;
             Render.text(name(e), textX(), y + 1, nameColor.getArgb(), true);
             if (!hidden) {

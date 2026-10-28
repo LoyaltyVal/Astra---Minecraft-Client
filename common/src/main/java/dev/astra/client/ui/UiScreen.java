@@ -80,6 +80,19 @@ public abstract class UiScreen {
     protected void keyPressed(int keyCode) {
     }
 
+    /** A typed character (from the game's own keyboard events, so symbols and capitals work). */
+    public void charTyped(char c, int keyCode) {
+    }
+
+    /** Runs once after the screen stops being shown (free textures, stop polling...). */
+    public void onClosed() {
+    }
+
+    /** True while the screen uses Escape itself (e.g. to stop editing text) instead of closing. */
+    public boolean usesEscape() {
+        return false;
+    }
+
     protected static Platform mc() {
         return Astra.platform();
     }

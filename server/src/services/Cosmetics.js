@@ -8,6 +8,12 @@ const { can } = require('./Ranks');
 const TYPES = ['cape', 'wings'];
 const RARITIES = ['common', 'rare', 'epic', 'legendary'];
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
+const MAX_PENDING = 3;    // waiting for review, per player
+const MAX_APPROVED = 10;  // approved uploads a player can keep
+
+/** Uploads waiting for review (or rejected) can't be worn or listed. */
+const live = (c) => !c.status || c.status === 'approved';
 
 /** Detects PNG/JPEG from the file's first bytes (never trust the extension). */
 function sniffImage(buf) {
@@ -35,7 +41,7 @@ class CosmeticService {
 
   all({ includeHidden = false } = {}) {
     return Object.values(this.store.cosmetics)
-      .filter((c) => includeHidden || !c.hidden)
+      .filter((c) => live(c) && (includeHidden || !c.hidden))
       .sort((a, b) => RARITIES.indexOf(b.rarity) - RARITIES.indexOf(a.rarity) || a.name.localeCompare(b.name));
   }
 
@@ -58,8 +64,82 @@ class CosmeticService {
       hidden: Boolean(c.hidden),
       image: `/api/cosmetics/${c.id}/image`,
       owners: this.ownerCount(c),
+      uploadedBy: c.uploadedBy || null,
       createdAt: c.createdAt
     };
+  }
+
+  // ---------- player uploads ----------
+
+  /** What a player sees about their own upload (and staff in the review queue). */
+  uploadView(c) {
+    return {
+      id: c.id,
+      name: c.name,
+      type: c.type,
+      status: c.status,
+      reason: c.reason || null,
+      image: c.status === 'rejected' ? null : `/api/cosmetics/${c.id}/image`,
+      uploadedBy: c.uploadedBy,
+      createdAt: c.createdAt,
+      reviewedAt: c.reviewedAt || null
+    };
+  }
+
+  uploadsOf(player) {
+    return Object.values(this.store.cosmetics)
+      .filter((c) => c.uploadedBy === player.uuid)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  pendingUploads() {
+    return Object.values(this.store.cosmetics)
+      .filter((c) => c.status === 'pending')
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  /** A player's own cape or wings, hidden until staff approve it. */
+  submit(player, { name, type, image }) {
+    const mine = this.uploadsOf(player);
+    if (mine.filter((c) => c.status === 'pending').length >= MAX_PENDING) {
+      throw new Error(`You already have ${MAX_PENDING} uploads waiting for review. Wait for staff to check them.`);
+    }
+    if (mine.filter((c) => c.status === 'approved').length >= MAX_APPROVED) {
+      throw new Error(`You can keep up to ${MAX_APPROVED} of your own cosmetics. Delete one first.`);
+    }
+    if (Buffer.isBuffer(image) && image.length > MAX_UPLOAD_BYTES) throw new Error('Images must be 2 MB or smaller.');
+    const c = this.create({ name, type, rarity: 'common', image, createdBy: player.uuid });
+    c.status = 'pending';
+    c.hidden = true;
+    c.uploadedBy = player.uuid;
+    this.store.save();
+    return c;
+  }
+
+  approve(id, reviewer, player) {
+    const c = this.get(id);
+    if (!c || c.status !== 'pending') throw new Error('That upload isn\'t waiting for review.');
+    c.status = 'approved';
+    c.reviewedBy = reviewer.uuid;
+    c.reviewedAt = new Date().toISOString();
+    if (player && !player.owned.includes(id)) player.owned.push(id);
+    // Wear it straight away if nothing of that type is on.
+    if (player && !player.equipped[c.type]) player.equipped[c.type] = id;
+    this.store.save();
+    return c;
+  }
+
+  /** Rejected images are deleted at once; the entry stays so the player sees why. */
+  reject(id, reviewer, reason) {
+    const c = this.get(id);
+    if (!c || c.status !== 'pending') throw new Error('That upload isn\'t waiting for review.');
+    c.status = 'rejected';
+    c.reason = String(reason || '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 200) || null;
+    c.reviewedBy = reviewer.uuid;
+    c.reviewedAt = new Date().toISOString();
+    fs.rmSync(this.imagePath(c), { force: true });
+    this.store.save();
+    return c;
   }
 
   ownerCount(c) {
@@ -75,7 +155,7 @@ class CosmeticService {
 
   owns(player, id) {
     const c = this.get(id);
-    return Boolean(c) && (this.hasAll(player) || c.free || player.owned.includes(id));
+    return Boolean(c) && live(c) && (this.hasAll(player) || c.free || player.owned.includes(id));
   }
 
   /** Owners and Admins (anyone who can manage cosmetics) can wear every cosmetic. */
@@ -183,4 +263,4 @@ class CosmeticService {
   }
 }
 
-module.exports = { CosmeticService, TYPES, RARITIES, sniffImage };
+module.exports = { CosmeticService, TYPES, RARITIES, sniffImage, MAX_PENDING, MAX_APPROVED };

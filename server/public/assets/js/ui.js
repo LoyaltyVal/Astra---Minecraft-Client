@@ -86,7 +86,7 @@ export class SiteChrome {
   async mount() {
     const header = document.querySelector('[data-nav]');
     const footer = document.querySelector('[data-footer]');
-    const links = [['/players', 'Players', 'players'], ['/cosmetics', 'Cosmetics', 'cosmetics'], ['/team', 'Team', 'team'], ['/#changelog', 'Changelog', 'changelog']];
+    const links = [['/players', 'Players', 'players'], ['/cosmetics', 'Cosmetics', 'cosmetics'], ['/team', 'Team', 'team'], ['/friends', 'Friends', 'friends'], ['/#changelog', 'Changelog', 'changelog']];
     if (header) {
       header.className = 'nav';
       header.innerHTML = `<div class="wrap"><a class="brand" href="/" aria-label="Astra home">${STAR}ASTRA</a>
@@ -101,8 +101,8 @@ export class SiteChrome {
         <div class="foot-brand"><a class="brand" href="/" aria-label="Astra home">${STAR}ASTRA</a>
           <p>A free PvP client for Minecraft 1.8.9 and 1.7.10.</p></div>
         <nav aria-label="Client"><b>Client</b><a class="js-download" href="/#download">Download</a><a href="/#changelog">Changelog</a><a href="/#faq">FAQ</a></nav>
-        <nav aria-label="Community" data-community><b>Community</b><a href="/players">Players</a><a href="/cosmetics">Cosmetics</a><a href="/team">Team</a><a href="/admin">Admin panel</a></nav>
-        <nav aria-label="Account"><b>Account</b><a href="/admin">Sign in</a><a href="/logout">Sign out</a></nav>
+        <nav aria-label="Community" data-community><b>Community</b><a href="/players">Players</a><a href="/cosmetics">Cosmetics</a><a href="/team">Team</a></nav>
+        <nav aria-label="Account" data-account><b>Account</b></nav>
       </div>
       <div class="wrap foot-legal"><p>© ${new Date().getFullYear()} Astra Client. Not an official Minecraft product. Not approved by or associated with Mojang or Microsoft.</p></div>`;
     }
@@ -114,7 +114,24 @@ export class SiteChrome {
     return this;
   }
 
+  /** Footer account links depend on who's signed in; the admin panel link is for staff only. */
+  renderAccountLinks() {
+    const nav = document.querySelector('[data-account]');
+    if (!nav) return;
+    nav.querySelectorAll('a').forEach((a) => a.remove());
+    if (this.me) {
+      nav.append(el('a', { href: `/player/${encodeURIComponent(this.me.name)}` }, 'My profile'));
+      nav.append(el('a', { href: '/friends' }, 'Friends'));
+      nav.append(el('a', { href: '/account' }, 'Settings'));
+      if (this.me.permissions.includes('admin.view')) nav.append(el('a', { href: '/admin' }, 'Admin panel'));
+      nav.append(el('a', { href: '/logout' }, 'Sign out'));
+    } else {
+      nav.append(el('a', { href: '/account' }, 'Sign in'));
+    }
+  }
+
   renderUser() {
+    this.renderAccountLinks();
     const slot = document.querySelector('[data-user]');
     if (!slot) return;
     slot.innerHTML = '';

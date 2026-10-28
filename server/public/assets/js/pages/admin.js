@@ -2,9 +2,10 @@ import { api } from '../api.js';
 import { SiteChrome, Toast, avatar, el, rankBadge, timeAgo } from '../ui.js';
 
 /**
- * The admin panel. Three tabs, each its own class:
+ * The admin panel. Four tabs, each its own class:
  *   PlayersPanel    search players, change rank, ban, give and take cosmetics, add by name
  *   CosmeticsPanel  upload new capes and wings, edit rarity / free / hidden, delete
+ *   UploadsPanel    approve or reject capes and wings that players uploaded
  *   ActivityPanel   the log of every staff action
  * What each tab lets you do depends on your rank; the server checks every action again.
  */
@@ -247,6 +248,55 @@ class CosmeticsPanel {
   }
 }
 
+class UploadsPanel {
+  constructor(admin) {
+    this.admin = admin;
+  }
+
+  render() {
+    this.root = el('div', { class: 'cpanel' }, el('p', { class: 'muted' }, 'Loading…'));
+    this.load();
+    return this.root;
+  }
+
+  async load() {
+    let uploads;
+    try {
+      ({ uploads } = await api.get('/api/admin/uploads'));
+    } catch (e) {
+      this.root.replaceChildren(el('p', { class: 'muted' }, e.message));
+      return;
+    }
+    this.admin.setPending(uploads.length);
+    if (!uploads.length) {
+      this.root.replaceChildren(el('div', { class: 'card' }, el('p', { class: 'muted' },
+        'Nothing to review. When players upload a cape or wings (Account page on the website), it waits here. Approved uploads belong only to the player who made them.')));
+      return;
+    }
+    this.root.replaceChildren(
+      el('p', { class: 'muted' }, `${uploads.length} waiting. Approve to let the player wear it (only they can). Reject deletes the image.`),
+      el('div', { class: 'cos-grid' }, uploads.map((u) => {
+        const card = el('article', { class: `cos ${u.type} common review` },
+          el('div', { class: 'art' }, el('img', { src: u.image, alt: `${u.name} ${u.type}` })),
+          el('div', { class: 'cos-meta' }, el('b', {}, u.name), el('span', { class: 'rarity' }, u.type === 'cape' ? 'Cape' : 'Wings')),
+          u.uploader ? el('a', { class: 'small', href: `/player/${encodeURIComponent(u.uploader.name)}` },
+            el('img', { src: avatar(u.uploader.uuid, 32), alt: '', class: 'tiny-head' }), ` ${u.uploader.name} · ${timeAgo(u.createdAt)}`) : null,
+          el('div', { class: 'review-actions' },
+            el('button', { class: 'btn btn-primary btn-sm', onclick: async (e) => {
+              const r = await run(e.currentTarget, () => api.post(`/api/admin/uploads/${u.id}/approve`), `Approved. ${u.uploader ? u.uploader.name : 'The player'} can wear it now.`);
+              if (r) this.load();
+            } }, 'Approve'),
+            el('button', { class: 'btn btn-danger btn-sm', onclick: async (e) => {
+              const reason = prompt(`Why are you rejecting "${u.name}"? The player sees this. (Optional)`, '');
+              if (reason === null) return;
+              const r = await run(e.currentTarget, () => api.post(`/api/admin/uploads/${u.id}/reject`, { reason }), 'Rejected and deleted.');
+              if (r) this.load();
+            } }, 'Reject')));
+        return card;
+      })));
+  }
+}
+
 class ActivityPanel {
   render() {
     this.root = el('div', { class: 'activity card' }, el('p', { class: 'muted' }, 'Loading…'));
@@ -293,6 +343,7 @@ class AdminPage {
     await this.refreshCosmetics();
 
     const panels = { players: new PlayersPanel(this), cosmetics: new CosmeticsPanel(this), activity: new ActivityPanel() };
+    if (this.can['uploads.review']) panels.uploads = new UploadsPanel(this);
     const body = el('div', { class: 'admin-body' });
     const tabs = el('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Admin sections' });
     const open = (key) => {
@@ -300,8 +351,17 @@ class AdminPage {
       body.replaceChildren(panels[key].render());
       try { sessionStorage.setItem('astra.adminTab', key); } catch { /* private mode */ }
     };
-    for (const [key, label] of [['players', 'Players'], ['cosmetics', 'Cosmetics'], ['activity', 'Activity']]) {
-      tabs.append(el('button', { class: 'tab', role: 'tab', 'data-key': key, onclick: () => open(key) }, label));
+    for (const [key, label] of [['players', 'Players'], ['cosmetics', 'Cosmetics'], ['uploads', 'Uploads'], ['activity', 'Activity']]) {
+      if (!panels[key]) continue;
+      const tab = el('button', { class: 'tab', role: 'tab', 'data-key': key, onclick: () => open(key) }, label);
+      if (key === 'uploads') {
+        this.pendingBadge = el('span', { class: 'tab-badge', hidden: true });
+        tab.append(this.pendingBadge);
+      }
+      tabs.append(tab);
+    }
+    if (panels.uploads) {
+      api.get('/api/admin/uploads').then(({ uploads }) => this.setPending(uploads.length)).catch(() => {});
     }
     this.root.replaceChildren(
       el('div', { class: 'admin-head' },
@@ -316,6 +376,12 @@ class AdminPage {
     let first = 'players';
     try { first = sessionStorage.getItem('astra.adminTab') || first; } catch { /* private mode */ }
     open(panels[first] ? first : 'players');
+  }
+
+  setPending(n) {
+    if (!this.pendingBadge) return;
+    this.pendingBadge.hidden = !n;
+    this.pendingBadge.textContent = String(n);
   }
 
   async refreshCosmetics() {

@@ -74,3 +74,10 @@ input[type="file"] { padding: 8px; }
 .log img { width: 24px; height: 24px; border-radius: 5px; image-rendering: pixelated; }
 .log time { color: var(--dust); font-size: 12.5px; white-space: nowrap; }
 .sysdot { width: 24px; height: 24px; border-radius: 5px; background: var(--surface-2); }
+
+/* ---------- uploads review ---------- */
+.tab-badge { display: inline-block; min-width: 18px; margin-left: 8px; padding: 0 6px; border-radius: 9px; background: var(--rose); color: #fff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; }
+.tab-badge[hidden] { display: none; }
+.cos.review .small { color: var(--dust); text-decoration: none; display: flex; align-items: center; gap: 6px; }
+.tiny-head { width: 18px; height: 18px; border-radius: 4px; image-rendering: pixelated; }
+.review-actions { display: flex; gap: 8px; margin-top: 4px; }

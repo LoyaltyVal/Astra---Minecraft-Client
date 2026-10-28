@@ -26,6 +26,16 @@ public abstract class HudModule extends Module {
     private float y;
     /** False until the position has been resolved from anchors or set by the user/config. */
     private boolean placed;
+    /**
+     * Where the module sits as a fraction of the free space (0 = left/top edge, 1 = right/bottom
+     * edge). This is what really defines the position, so a module on the right edge stays on the
+     * right edge when the window is resized or leaves fullscreen.
+     */
+    private float fracX = -1f;
+    private float fracY = -1f;
+    /** True after setPosition: the fractions are recomputed from x/y on the next frame. */
+    private boolean fracDirty;
+
     protected final NumberSetting scale;
 
     protected HudModule(String name, String description, Category category, boolean enabledByDefault,
@@ -96,9 +106,41 @@ public abstract class HudModule extends Module {
             x = resolve(defaultX, screenWidth, w);
             y = resolve(defaultY, screenHeight, h);
             placed = true;
+            fracDirty = true;
         }
-        x = Math.max(0, Math.min(x, screenWidth - w));
-        y = Math.max(0, Math.min(y, screenHeight - h));
+        float freeW = Math.max(1f, screenWidth - w);
+        float freeH = Math.max(1f, screenHeight - h);
+        if (fracDirty || fracX < 0 || fracY < 0) {
+            fracX = clamp01(x / freeW);
+            fracY = clamp01(y / freeH);
+            fracDirty = false;
+        }
+        // Follow the window: the position is always the stored fraction of the free space.
+        x = fracX * freeW;
+        y = fracY * freeH;
+        if (screenWidth < w) x = 0;
+        if (screenHeight < h) y = 0;
+    }
+
+    private static float clamp01(float v) {
+        return Math.max(0f, Math.min(1f, v));
+    }
+
+    /** The saved position as fractions of the free space (see {@link #fracX}); -1 when not placed yet. */
+    public float getFractionX() {
+        return fracX;
+    }
+
+    public float getFractionY() {
+        return fracY;
+    }
+
+    /** Restores a saved position (from the config). */
+    public void setFraction(float fx, float fy) {
+        fracX = clamp01(fx);
+        fracY = clamp01(fy);
+        fracDirty = false;
+        placed = true;
     }
 
     private static float resolve(float value, int screen, float size) {
@@ -113,6 +155,7 @@ public abstract class HudModule extends Module {
 
     public void resetPosition() {
         placed = false;
+        fracX = fracY = -1f;
         scale.reset();
     }
 
@@ -133,6 +176,7 @@ public abstract class HudModule extends Module {
         this.x = x;
         this.y = y;
         this.placed = true;
+        this.fracDirty = true;
     }
 
     public float getScale() {

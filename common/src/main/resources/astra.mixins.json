@@ -10,7 +10,18 @@
     "AbstractClientPlayerEntityMixin",
     "PlayerEntityRendererMixin",
     "EntityRendererMixin",
-    "EntityMixin"
+    "EntityMixin",
+    "HandledScreenMixin",
+    "InventoryScreenMixin",
+    "LivingEntityRendererMixin",
+    "TitleScreenMixin",
+    "MinecraftClientAccessor",
+    "ItemStackMixin",
+    "ChatHudMixin",
+    "ResourcePackLoaderMixin",
+    "ArmorGlintMixin",
+    "PlayerModelEmoteMixin",
+    "CameraAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

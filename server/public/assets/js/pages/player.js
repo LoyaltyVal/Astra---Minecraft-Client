@@ -45,6 +45,8 @@ class PlayerPage {
               ? (player.playing.server === 'singleplayer' ? `Playing singleplayer · ${player.playing.version}` : `Playing on ${player.playing.server} · ${player.playing.version}`)
               : `In game · ${player.playing.version}`)
           : null,
+        player.bio ? el('p', { class: 'bio' }, player.bio) : null,
+        player.discord ? el('p', { class: 'muted discord-tag' }, 'Discord · ', el('b', {}, player.discord.username)) : null,
         player.banned ? el('p', { class: 'banned' }, 'This player is banned from Astra.') : null,
         el('div', { class: 'worn-row' }, worn))));
   }

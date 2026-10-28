@@ -11,6 +11,7 @@ import dev.astra.client.module.setting.BooleanSetting;
 import dev.astra.client.module.setting.ColorSetting;
 import dev.astra.client.module.setting.KeySetting;
 import dev.astra.client.module.setting.ModeSetting;
+import dev.astra.client.module.setting.TextSetting;
 import dev.astra.client.module.setting.NumberSetting;
 import dev.astra.client.module.setting.Setting;
 import dev.astra.client.util.Colors;
@@ -73,6 +74,9 @@ public final class ModMenuScreen extends UiScreen {
     private int sliderX;
     private int sliderW;
     private KeySetting listening;
+    /** The text setting being typed into, and its text before editing (restored on Escape). */
+    private TextSetting typing;
+    private String typingBefore;
 
     private final long openedAt = System.currentTimeMillis();
     private final Map<String, Float> hover = new HashMap<String, Float>();
@@ -472,7 +476,17 @@ public final class ModMenuScreen extends UiScreen {
             }
         };
 
-        if (m instanceof HudModule && ((HudModule) m).getHudVisibility() != null && m.isEnabled()) {
+        if (m.createScreen() != null) {
+            // Waypoints, Screenshots, Radio: open their screen, or switch them on/off.
+            int half = (w - 2) / 2;
+            list.add(new CardButton("OPEN", new Runnable() {
+                @Override
+                public void run() {
+                    open(m.createScreen());
+                }
+            }, x, y, half, h));
+            list.add(new CardButton(m.isEnabled() ? "DISABLE" : "ENABLE", toggle, x + half + 2, y, w - half - 2, h));
+        } else if (m instanceof HudModule && ((HudModule) m).getHudVisibility() != null && m.isEnabled()) {
             // e.g. Toggle Sprint: hide just the HUD text, or turn the whole thing off.
             final BooleanSetting visible = ((HudModule) m).getHudVisibility();
             int half = (w - 2) / 2;
@@ -614,6 +628,19 @@ public final class ModMenuScreen extends UiScreen {
                 int bw = Math.max(50, Render.width(label) + 12);
                 Render.round(right - bw, y + 2, bw, 13, 2, listening == k ? Theme.accentDark() : Theme.CONTROL);
                 Render.textCentered(label, right - bw / 2f, y + 5, Theme.TEXT, false);
+            } else if (setting instanceof TextSetting) {
+                TextSetting t = (TextSetting) setting;
+                int bw = Math.min(w - Render.width(setting.getName()) - 24, 190);
+                boolean active = typing == t;
+                Render.round(right - bw, y + 2, bw, 13, 2, active ? Theme.accentDark() : Theme.CONTROL);
+                boolean caret = active && (System.currentTimeMillis() / 500) % 2 == 0;
+                String shown = t.isEmpty() && !active ? t.getPlaceholder() : t.get() + (caret ? "_" : "");
+                // Show the end of long text while typing, the start otherwise.
+                String fit = shown;
+                while (Render.width(fit) > bw - 8 && fit.length() > 1) {
+                    fit = active ? fit.substring(1) : fit.substring(0, fit.length() - 1);
+                }
+                Render.text(fit, right - bw + 4, y + 5, t.isEmpty() && !active ? Theme.SUBTEXT : Theme.TEXT, false);
             } else if (setting instanceof ModeSetting) {
                 String label = "< " + setting.get() + " >";
                 int bw = Render.width(label) + 12;
@@ -689,6 +716,7 @@ public final class ModMenuScreen extends UiScreen {
         }
         listening = null;
         searchFocused = false;
+        stopTyping(true);
 
         if (button == 0) {
             if (Render.inside(mx, my, editHudX(), buttonsY, ICON_BUTTON, TOP_H)
@@ -863,6 +891,10 @@ public final class ModMenuScreen extends UiScreen {
                     }
                 } else if (setting instanceof KeySetting) {
                     listening = (KeySetting) setting;
+                } else if (setting instanceof TextSetting) {
+                    stopTyping(true);
+                    typing = (TextSetting) setting;
+                    typingBefore = typing.get();
                 } else if (setting instanceof ModeSetting) {
                     ((ModeSetting) setting).cycle();
                 }
@@ -886,8 +918,45 @@ public final class ModMenuScreen extends UiScreen {
         targetScroll = Math.max(0, Math.min(maxScroll(), targetScroll - direction * 30));
     }
 
+    private void stopTyping(boolean keep) {
+        if (typing != null) {
+            if (!keep) {
+                typing.set(typingBefore);
+            }
+            typing = null;
+            save();
+        }
+    }
+
+    @Override
+    public boolean usesEscape() {
+        return typing != null || listening != null;
+    }
+
+    @Override
+    public void charTyped(char c, int keyCode) {
+        if (typing == null) {
+            return;
+        }
+        if (keyCode == Keyboard.KEY_ESCAPE) {
+            stopTyping(false);
+        } else if (keyCode == Keyboard.KEY_RETURN || keyCode == Keyboard.KEY_TAB) {
+            stopTyping(true);
+        } else if (keyCode == Keyboard.KEY_BACK) {
+            String v = typing.get();
+            if (!v.isEmpty()) {
+                typing.set(v.substring(0, v.length() - 1));
+            }
+        } else if (c >= 32 && c != 127 && c != '\u00a7') {
+            typing.set(typing.get() + c);
+        }
+    }
+
     @Override
     protected void keyPressed(int keyCode) {
+        if (typing != null) {
+            return; // typed characters arrive through charTyped
+        }
         if (listening != null) {
             // Backspace/Delete clears the bind. (Escape closes the menu, handled by vanilla.)
             if (keyCode == Keyboard.KEY_BACK || keyCode == Keyboard.KEY_DELETE) {
@@ -927,6 +996,7 @@ public final class ModMenuScreen extends UiScreen {
     }
 
     private void switchPage(Page next) {
+        stopTyping(true);
         page = next;
         editing = null;
         listening = null;
@@ -943,6 +1013,7 @@ public final class ModMenuScreen extends UiScreen {
     }
 
     private void backToGrid() {
+        stopTyping(true);
         editing = null;
         listening = null;
         scroll = targetScroll = 0;

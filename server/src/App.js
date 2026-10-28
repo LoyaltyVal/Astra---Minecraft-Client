@@ -12,12 +12,27 @@ const { AuditLog } = require('./services/Audit');
 const { DiscordNotifier } = require('./services/Discord');
 const { publicRoutes } = require('./routes/public');
 const { adminRoutes } = require('./routes/admin');
+const { accountRoutes } = require('./routes/account');
+const { uploadRoutes } = require('./routes/uploads');
+const { socialRoutes } = require('./routes/social');
+const { SocialService } = require('./services/Social');
+const { LiveHub } = require('./live/LiveHub');
 
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
   'Referrer-Policy': 'same-origin'
 };
+
+/** The player's address; behind Cloudflare Tunnel or a proxy every request comes from 127.0.0.1. */
+function clientIp(req, config) {
+  const direct = req.socket.remoteAddress || '';
+  if (!config.trustProxy) return direct;
+  const cf = req.headers['cf-connecting-ip'];
+  if (cf) return String(cf).trim();
+  const xff = req.headers['x-forwarded-for'];
+  return xff ? String(xff).split(',')[0].trim() : direct;
+}
 
 /** Wires the store, services and routes together and serves HTTP. */
 class App {
@@ -33,7 +48,9 @@ class App {
     const discord = new DiscordNotifier(config, fetchImpl);
     players.onJoin = (p) => discord.newPlayer(p);
     const audit = new AuditLog(this.store, discord);
-    this.ctx = { config, store: this.store, players, cosmetics, auth, audit, discord, fetch: fetchImpl };
+    const social = new SocialService(this.store, players);
+    this.ctx = { config, store: this.store, players, cosmetics, auth, audit, discord, social, fetch: fetchImpl };
+    this.ctx.live = new LiveHub(this.ctx);
 
     const seeded = cosmetics.seed(config.seedDir);
     if (seeded) console.log(`[astra] Added ${seeded} starter cosmetics.`);
@@ -41,9 +58,13 @@ class App {
     this.router = new Router();
     publicRoutes(this.router, this.ctx);
     adminRoutes(this.router, this.ctx);
+    socialRoutes(this.router, this.ctx);
+    accountRoutes(this.router, this.ctx);
+    uploadRoutes(this.router, this.ctx);
   }
 
   async handle(req, res) {
+    req.clientIp = clientIp(req, this.config);
     for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);
     try {
       if (await this.router.handle(req, res)) return;
@@ -65,6 +86,17 @@ class App {
 
   listen(port = this.config.port) {
     this.server = http.createServer((req, res) => this.handle(req, res));
+    // WebSocket upgrades (/api/live) for instant messages, friend updates and emotes.
+    this.server.on('upgrade', (req, socket) => {
+      req.clientIp = clientIp(req, this.config);
+      socket.on('error', () => {});
+      try {
+        this.ctx.live.handleUpgrade(req, socket);
+      } catch (e) {
+        console.error('[astra] WebSocket upgrade failed:', e);
+        socket.destroy();
+      }
+    });
     return new Promise((resolve, reject) => {
       this.server.once('error', reject);
       this.server.listen(port, () => resolve(this.server));
@@ -72,6 +104,7 @@ class App {
   }
 
   async close() {
+    this.ctx.live.close();
     this.store.flush();
     if (this.server) await new Promise((r) => this.server.close(r));
   }

@@ -391,4 +391,140 @@ public final class PlatformImpl implements dev.astra.client.platform.Platform {
         net.minecraft.client.network.ServerInfo entry = mc().getCurrentServerEntry();
         return entry != null && entry.address != null ? entry.address : "unknown";
     }
+
+    @Override
+    public int getSprintKeyCode() {
+        return mc().options.sprintKey.getCode();
+    }
+
+    @Override
+    public int countPotions(int kind) {
+        if (!isInGame()) {
+            return 0;
+        }
+        int n = 0;
+        for (ItemStack stack : mc().player.inventory.main) {
+            if (stack == null || net.minecraft.item.Item.getRawId(stack.getItem()) != 373) {
+                continue;
+            }
+            int meta = stack.getData();
+            boolean healing = (meta & 15) == 5;
+            boolean splash = (meta & 16384) != 0;
+            if (kind == 2 || (kind == 1 && healing) || (kind == 0 && healing && splash)) {
+                n += stack.count;
+            }
+        }
+        return n;
+    }
+
+    @Override
+    public void sendChatMessage(String message) {
+        if (isInGame()) {
+            mc().player.sendChatMessage(message);
+        }
+    }
+
+    @Override
+    public void deleteTexture(Object handle) {
+        if (handle instanceof Identifier) {
+            mc().getTextureManager().close((Identifier) handle);
+        }
+    }
+
+    @Override
+    public float getHealth() {
+        return isInGame() ? mc().player.getHealth() : 0f;
+    }
+
+    @Override
+    public int getDimension() {
+        return isInGame() ? mc().player.dimension : 0;
+    }
+
+    @Override
+    public String getWorldName() {
+        return mc().isIntegratedServerRunning() && mc().getServer() != null ? mc().getServer().getLevelName() : null;
+    }
+
+    @Override
+    public double[] getRenderPos(float tickDelta) {
+        net.minecraft.entity.Entity e = mc().getCameraEntity() != null ? mc().getCameraEntity() : mc().player;
+        if (e == null) {
+            return new double[3];
+        }
+        return new double[]{
+                e.prevTickX + (e.x - e.prevTickX) * tickDelta,
+                e.prevTickY + (e.y - e.prevTickY) * tickDelta,
+                e.prevTickZ + (e.z - e.prevTickZ) * tickDelta
+        };
+    }
+
+    @Override
+    public java.nio.FloatBuffer getModelViewMatrix() {
+        return dev.astra.client.mixin.CameraAccessor.astra$model();
+    }
+
+    @Override
+    public java.nio.FloatBuffer getProjectionMatrix() {
+        return dev.astra.client.mixin.CameraAccessor.astra$projection();
+    }
+
+    @Override
+    public void joinServer(String address) {
+        MinecraftClient mc = mc();
+        if (mc.world != null) {
+            mc.world.disconnect();
+            mc.connect((net.minecraft.client.world.ClientWorld) null);
+        }
+        net.minecraft.client.network.ServerInfo info = new net.minecraft.client.network.ServerInfo("Friend", address, false);
+        mc.setScreen(new net.minecraft.client.gui.screen.ConnectScreen(new net.minecraft.client.gui.screen.TitleScreen(), mc, info));
+    }
+
+    @Override
+    public void resizeGame(int width, int height) {
+        ((dev.astra.client.mixin.MinecraftClientAccessor) mc()).astra$resize(width, height);
+    }
+
+    @Override
+    public int getMaxFps() {
+        return mc().options.maxFramerate;
+    }
+
+    @Override
+    public void setMaxFps(int fps) {
+        mc().options.maxFramerate = fps;
+    }
+
+    @Override
+    public int getParticles() {
+        return mc().options.particle;
+    }
+
+    @Override
+    public void setParticles(int level) {
+        mc().options.particle = level;
+    }
+
+    @Override
+    public boolean getEntityShadows() {
+        return mc().options.entityShadows;
+    }
+
+    @Override
+    public void setEntityShadows(boolean on) {
+        mc().options.entityShadows = on;
+    }
+
+    @Override
+    public void swingIfUsingAndAttacking() {
+        net.minecraft.entity.player.ClientPlayerEntity p = mc().player;
+        if (p == null || !p.isUsingItem() || !mc().options.attackKey.isPressed()) {
+            return;
+        }
+        // Same as LivingEntity#swingHand without the packet: restart the swing once it's half done.
+        if (!p.handSwinging || p.handSwingTicks >= 3 || p.handSwingTicks < 0) {
+            p.handSwingTicks = -1;
+            p.handSwinging = true;
+        }
+    }
 }

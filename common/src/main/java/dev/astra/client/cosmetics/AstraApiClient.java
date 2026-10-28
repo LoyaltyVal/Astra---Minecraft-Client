@@ -15,11 +15,11 @@ import java.nio.charset.Charset;
  * A tiny blocking HTTP client for the Astra server. Only ever called from Astra's background
  * threads, never the render thread.
  */
-final class AstraApiClient {
+public final class AstraApiClient {
 
     /** A failed request: {@link #status} is the HTTP status, or 0 if the server couldn't be reached. */
-    static final class ApiException extends IOException {
-        final int status;
+    public static final class ApiException extends IOException {
+        public final int status;
 
         ApiException(int status, String message) {
             super(message);
@@ -32,28 +32,38 @@ final class AstraApiClient {
     private final String base;
     private final String token;
 
-    AstraApiClient(String base, String token) {
+    public AstraApiClient(String base, String token) {
         this.base = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
         this.token = token == null || token.isEmpty() ? null : token;
     }
 
-    boolean hasToken() {
+    /** HTTPS sockets that also trust current root certificates (old Java 8 builds lack them). */
+    public static javax.net.ssl.SSLSocketFactory trustedSockets() {
+        return AstraTrust.socketFactory();
+    }
+
+    public boolean hasToken() {
         return token != null;
     }
 
-    String url(String path) {
+    /** A live connection (WebSocket) for instant updates; call start() on it. */
+    public AstraSocket openSocket(AstraSocket.Listener listener) {
+        return token == null ? null : new AstraSocket(base, token, listener);
+    }
+
+    public String url(String path) {
         return base + path;
     }
 
-    JsonElement getJson(String path) throws IOException {
+    public JsonElement getJson(String path) throws IOException {
         return parse(request("GET", path, null));
     }
 
-    JsonElement postJson(String path, String body) throws IOException {
+    public JsonElement postJson(String path, String body) throws IOException {
         return parse(request("POST", path, body));
     }
 
-    byte[] getBytes(String path) throws IOException {
+    public byte[] getBytes(String path) throws IOException {
         return request("GET", path, null);
     }
 
@@ -61,6 +71,9 @@ final class AstraApiClient {
         HttpURLConnection c;
         try {
             c = (HttpURLConnection) new URL(base + path).openConnection();
+            if (c instanceof javax.net.ssl.HttpsURLConnection && AstraTrust.socketFactory() != null) {
+                ((javax.net.ssl.HttpsURLConnection) c).setSSLSocketFactory(AstraTrust.socketFactory());
+            }
         } catch (IOException e) {
             throw new ApiException(0, "Bad server address: " + base);
         }

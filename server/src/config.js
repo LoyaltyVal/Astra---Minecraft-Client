@@ -22,7 +22,18 @@ const DEFAULTS = {
   //   discordClientId  your Discord application's ID, for "Playing Astra" status in Discord
   discordInvite: '',
   discordWebhook: '',
-  discordClientId: ''
+  discordClientId: '',
+  //   discordClientSecret  that application's OAuth2 secret, so players can link Discord on /account
+  //                    (add <publicUrl>/api/discord/callback as a redirect in the Discord developer portal)
+  discordClientSecret: '',
+  // Stations for the in-game radio (MP3 streams). Leave empty for the built-in list. Each one:
+  //   { "id": "groovesalad", "name": "Groove Salad", "genre": "Ambient", "url": "https://ice.somafm.com/groovesalad-128-mp3" }
+  radioStations: [],
+  // Players can upload their own capes and wings; staff approve them in the admin panel first.
+  playerUploads: true,
+  // Set when the server sits behind a tunnel or reverse proxy (Cloudflare Tunnel, nginx), so
+  // rate limits see each player's real address instead of the proxy's.
+  trustProxy: false
 };
 
 /** Reads config.json (if present) and ASTRA_* environment variables. */
@@ -42,6 +53,8 @@ function loadConfig() {
   if (process.env.ASTRA_DISCORD_INVITE) env.discordInvite = process.env.ASTRA_DISCORD_INVITE;
   if (process.env.ASTRA_DISCORD_WEBHOOK) env.discordWebhook = process.env.ASTRA_DISCORD_WEBHOOK;
   if (process.env.ASTRA_DISCORD_CLIENT_ID) env.discordClientId = process.env.ASTRA_DISCORD_CLIENT_ID;
+  if (process.env.ASTRA_TRUST_PROXY) env.trustProxy = process.env.ASTRA_TRUST_PROXY === '1';
+  if (process.env.ASTRA_DISCORD_CLIENT_SECRET) env.discordClientSecret = process.env.ASTRA_DISCORD_CLIENT_SECRET;
 
   const config = { ...DEFAULTS, ...file, ...env };
   config.publicUrl = String(config.publicUrl).replace(/\/+$/, '');

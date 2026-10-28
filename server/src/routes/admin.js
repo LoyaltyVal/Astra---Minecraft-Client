@@ -142,7 +142,7 @@ function adminRoutes(router, ctx) {
   router.get('/api/admin/whoami', requirePermission(ctx, 'admin.view'), (req, res) => {
     sendJson(res, 200, {
       player: players.publicView(req.player, cosmetics),
-      can: Object.fromEntries(['admin.view', 'players.ban', 'cosmetics.grant', 'cosmetics.manage', 'ranks.set'].map((k) => [k, can(req.player, k)]))
+      can: Object.fromEntries(['admin.view', 'players.ban', 'uploads.review', 'cosmetics.grant', 'cosmetics.manage', 'ranks.set'].map((k) => [k, can(req.player, k)]))
     });
   });
 }

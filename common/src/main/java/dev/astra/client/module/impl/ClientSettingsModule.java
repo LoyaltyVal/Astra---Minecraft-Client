@@ -11,12 +11,20 @@ public final class ClientSettingsModule extends Module {
     private final ColorSetting accent;
     private final BooleanSetting dimBackground;
     private final BooleanSetting showHudLabels;
+    private final BooleanSetting noHeartFlash;
+    private final BooleanSetting centerInventory;
+    private final BooleanSetting titleButtons;
+    private final BooleanSetting ownNametag;
 
     public ClientSettingsModule() {
-        super("Client", "Menu colours and editor options.", Category.CLIENT, true);
+        super("Client", "Menu colours, editor options and game tweaks.", Category.CLIENT, true);
         accent = setting(new ColorSetting("Accent Color", 0xFF9B7BFF));
         dimBackground = setting(new BooleanSetting("Dim Background", true));
         showHudLabels = setting(new BooleanSetting("HUD Editor Labels", true));
+        noHeartFlash = setting(new BooleanSetting("No Heart Flashing", true));
+        centerInventory = setting(new BooleanSetting("Center Inventory", true));
+        ownNametag = setting(new BooleanSetting("Own Nametag in F5", false));
+        titleButtons = setting(new BooleanSetting("Astra Buttons on Title Screen", true));
     }
 
     @Override
@@ -39,5 +47,25 @@ public final class ClientSettingsModule extends Module {
 
     public boolean isShowHudLabels() {
         return showHudLabels.isOn();
+    }
+
+    /** Stops hearts blinking every time the server re-sends your health. */
+    public boolean noHeartFlash() {
+        return noHeartFlash.isOn();
+    }
+
+    /** Keeps the inventory in the middle when you have potion effects (vanilla shifts it right). */
+    public boolean centerInventory() {
+        return centerInventory.isOn();
+    }
+
+    /** Shows your own name tag in third person. */
+    /** The Friends / Quick Join / Screenshots row on the title screen. */
+    public boolean titleButtons() {
+        return titleButtons.isOn();
+    }
+
+    public boolean ownNametag() {
+        return ownNametag.isOn();
     }
 }

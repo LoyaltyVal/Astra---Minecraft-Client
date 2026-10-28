@@ -60,6 +60,7 @@ function showView(name) {
     const logs = $('logs');
     logs.scrollTop = logs.scrollHeight;
   }
+  if (name === 'friends') loadFriends();
   if (name === 'cosmetics') {
     if (!state.astra) loadAstra();
     else renderCosmetics();
@@ -103,7 +104,7 @@ function renderAccount() {
   const placeholder = $('account-placeholder');
   if (state.account) {
     $('account-name').textContent = state.account.name;
-    $('account-action').textContent = 'Sign out';
+    $('account-action').textContent = 'Switch account ▾';
     head.onerror = () => {
       head.hidden = true;
       placeholder.hidden = false;
@@ -127,9 +128,7 @@ async function signIn() {
   setStatus('Waiting for Microsoft sign-in…');
   const res = await astra.login();
   if (res.ok) {
-    state.account = res.value;
-    setStatus(`Signed in as ${res.value.name}`);
-    loadAstra();
+    accountChanged(res.value, `Signed in as ${res.value.name}`);
   } else if (res.cancelled) {
     setStatus('Ready');
   } else {
@@ -139,19 +138,215 @@ async function signIn() {
   renderAccount();
 }
 
-$('account-action').addEventListener('click', async () => {
-  if (state.phase !== 'idle') return;
-  if (state.account) {
-    await astra.logout();
-    state.account = null;
-    state.astra = null;
-    state.astraError = null;
-    renderAstraAccount();
-    setStatus('Signed out');
-    renderAccount();
-  } else {
-    signIn();
+/** After switching or removing an account: reload everything that belongs to the account. */
+function accountChanged(account, message) {
+  state.account = account || null;
+  state.astra = null;
+  state.astraError = null;
+  renderAstraAccount();
+  renderAccount();
+  setStatus(message);
+  if (state.account) loadAstra();
+  renderAccountsList();
+  connectLive();
+}
+
+function closeAccountMenu() {
+  $('account-menu').hidden = true;
+  $('account-action').setAttribute('aria-expanded', 'false');
+}
+
+async function openAccountMenu() {
+  const menu = $('account-menu');
+  const res = await astra.accounts();
+  const accounts = res.ok ? res.value : [];
+  menu.replaceChildren();
+  for (const a of accounts) {
+    const row = el('button', 'acct-row');
+    row.setAttribute('role', 'menuitem');
+    const img = document.createElement('img');
+    img.src = `https://mc-heads.net/avatar/${encodeURIComponent(a.id)}/56`;
+    img.alt = '';
+    img.onerror = () => { img.style.visibility = 'hidden'; };
+    row.append(img, el('span', 'acct-name', a.name));
+    if (a.expired) row.append(el('span', 'acct-tag expired', 'Sign in again'));
+    else if (a.active) row.append(el('span', 'acct-tag', 'Playing'));
+    const remove = el('span', 'acct-remove', '✕');
+    remove.title = `Remove ${a.name} from this launcher`;
+    remove.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!confirm(`Remove ${a.name} from the launcher? You can add it again later.`)) return;
+      const r = await astra.removeAccount(a.id);
+      if (!r.ok) return toast(r.error);
+      if (a.active) accountChanged(r.value, r.value ? `Switched to ${r.value.name}` : 'Signed out');
+      openAccountMenu();
+    });
+    row.append(remove);
+    row.addEventListener('click', async () => {
+      closeAccountMenu();
+      if (a.expired) return signIn();
+      if (a.active) return;
+      const r = await astra.switchAccount(a.id);
+      if (!r.ok) return toast(r.error);
+      accountChanged(r.value, `Switched to ${r.value.name}`);
+      toast(`Playing as ${r.value.name}`, true);
+    });
+    menu.appendChild(row);
   }
+  menu.appendChild(el('div', 'acct-sep'));
+  const add = el('button', 'acct-row plain', '+ Add another account');
+  add.addEventListener('click', () => {
+    closeAccountMenu();
+    signIn();
+  });
+  const out = el('button', 'acct-row plain', `Sign out of ${state.account.name}`);
+  out.addEventListener('click', async () => {
+    closeAccountMenu();
+    const r = await astra.logout();
+    accountChanged(r.ok ? r.value : null, r.ok && r.value ? `Signed out. Switched to ${r.value.name}` : 'Signed out');
+  });
+  menu.append(add, out);
+  menu.hidden = false;
+  $('account-action').setAttribute('aria-expanded', 'true');
+  const first = menu.querySelector('.acct-row');
+  if (first) first.focus();
+}
+
+// Arrow keys move through the account menu.
+$('account-menu').addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+  e.preventDefault();
+  const rows = [...$('account-menu').querySelectorAll('.acct-row')];
+  const i = rows.indexOf(document.activeElement);
+  const next = rows[(i + (e.key === 'ArrowDown' ? 1 : rows.length - 1)) % rows.length];
+  if (next) next.focus();
+});
+
+// ---------------------------------------------------------------- accounts (Settings)
+
+async function renderAccountsList() {
+  const box = $('accounts-list');
+  const res = await astra.accounts();
+  const accounts = res.ok ? res.value : [];
+  box.replaceChildren();
+  if (!accounts.length) {
+    box.appendChild(el('p', 'hint', 'No accounts yet. Add your Microsoft account to play.'));
+    return;
+  }
+  for (const a of accounts) {
+    const line = el('div', `acct-line${a.active ? ' active' : ''}${a.expired ? ' expired' : ''}`);
+    const img = document.createElement('img');
+    img.src = `https://mc-heads.net/avatar/${encodeURIComponent(a.id)}/68`;
+    img.alt = '';
+    img.onerror = () => { img.style.visibility = 'hidden'; };
+    const who = el('div', 'who');
+    who.append(el('b', '', a.name), el('span', '', a.expired ? 'Microsoft sign-in expired' : a.active ? 'Playing with this account' : 'Saved'));
+    line.append(img, who);
+    if (a.expired) {
+      const b = el('button', 'primary', 'Sign in again');
+      b.addEventListener('click', () => signIn());
+      line.appendChild(b);
+    } else if (!a.active) {
+      const b = el('button', 'ghost', 'Switch');
+      b.addEventListener('click', async () => {
+        const r = await astra.switchAccount(a.id);
+        if (!r.ok) return toast(r.error);
+        accountChanged(r.value, `Switched to ${r.value.name}`);
+        toast(`Playing as ${r.value.name}`, true);
+      });
+      line.appendChild(b);
+    }
+    const rm = el('button', 'ghost', 'Remove');
+    rm.addEventListener('click', async () => {
+      if (!confirm(`Remove ${a.name} from the launcher? You can add it again later.`)) return;
+      const r = await astra.removeAccount(a.id);
+      if (!r.ok) return toast(r.error);
+      if (a.active) accountChanged(r.value, r.value ? `Switched to ${r.value.name}` : 'Signed out');
+      else renderAccountsList();
+    });
+    line.appendChild(rm);
+    box.appendChild(line);
+  }
+}
+
+$('accounts-add').addEventListener('click', () => {
+  if (state.phase !== 'idle') return toast('Close Minecraft before changing accounts.');
+  signIn();
+});
+
+// ---------------------------------------------------------------- live connection (WebSocket)
+
+/**
+ * A WebSocket to the Astra server for instant friend requests and messages. Reconnects by itself
+ * and reopens for the new account after a switch.
+ */
+const live = { ws: null, retry: null, delay: 2000, generation: 0 };
+
+async function connectLive() {
+  live.generation++;
+  const gen = live.generation;
+  clearTimeout(live.retry);
+  if (live.ws) {
+    live.ws.onclose = null;
+    live.ws.close();
+    live.ws = null;
+  }
+  if (!state.account) return;
+  const res = await astra.server.live();
+  if (gen !== live.generation) return;
+  if (!res.ok) {
+    live.retry = setTimeout(connectLive, 60000);
+    return;
+  }
+  let ws;
+  try {
+    ws = new WebSocket(res.value.url, ['astra', `astra-auth.${res.value.token}`]);
+  } catch {
+    return;
+  }
+  live.ws = ws;
+  ws.onopen = () => {
+    live.delay = 2000;
+    refreshFriendBadge();
+  };
+  ws.onmessage = (e) => {
+    let event;
+    try { event = JSON.parse(e.data); } catch { return; }
+    if (event.type === 'friends') {
+      if ($('view-friends').classList.contains('active')) loadFriends();
+      else refreshFriendBadge();
+    } else if (event.type === 'message' && event.message && state.account && event.message.to === String(state.account.id).replace(/-/g, '')) {
+      toast(`${event.message.fromName}: ${event.message.text}`, true);
+    }
+  };
+  ws.onclose = () => {
+    if (gen !== live.generation) return;
+    live.retry = setTimeout(connectLive, live.delay);
+    live.delay = Math.min(live.delay * 2, 60000);
+  };
+}
+
+/** Updates the red request count on the Friends tab without opening it. */
+async function refreshFriendBadge() {
+  const res = await astra.server.friends();
+  if (!res.ok) return;
+  const badge = $('friends-badge');
+  badge.hidden = !res.value.incoming.length;
+  badge.textContent = String(res.value.incoming.length);
+}
+
+$('account-action').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (state.phase !== 'idle') return;
+  if (!state.account) return signIn();
+  if ($('account-menu').hidden) openAccountMenu();
+  else closeAccountMenu();
+});
+document.addEventListener('click', (e) => {
+  if (!$('account-menu').hidden && !$('account-menu').contains(e.target)) closeAccountMenu();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeAccountMenu();
 });
 
 // ---------------------------------------------------------------- launch
@@ -331,7 +526,7 @@ async function equipCosmetic(id) {
 }
 
 async function openWebsite() {
-  const res = await astra.server.openWebsite();
+  const res = await astra.server.openWebsite(null);
   if (!res.ok) toast(res.error);
 }
 
@@ -343,7 +538,122 @@ document.querySelectorAll('.seg').forEach((b) => {
 });
 $('cos-refresh').addEventListener('click', loadAstra);
 $('cos-web').addEventListener('click', openWebsite);
+$('cos-upload').addEventListener('click', async () => {
+  const res = await astra.server.openWebsite('/account#uploads');
+  if (!res.ok) toast(res.error);
+});
 $('nav-admin').addEventListener('click', openWebsite);
+
+// ---------------------------------------------------------------- friends view
+
+function statusOf(f) {
+  if (f.playing) {
+    if (!f.playing.server) return `In game · ${f.playing.version}`;
+    return f.playing.server === 'singleplayer' ? 'Playing singleplayer' : `On ${f.playing.server}`;
+  }
+  return f.online ? 'Online' : 'Offline';
+}
+
+function friendCard(f, buttons) {
+  const card = el('div', 'friend' + (f.playing ? ' playing' : ''));
+  const img = document.createElement('img');
+  img.src = `https://mc-heads.net/avatar/${f.uuid}/76`;
+  img.alt = '';
+  img.onerror = () => { img.style.visibility = 'hidden'; };
+  const who = el('div', 'who');
+  const name = el('b', '', f.name);
+  if (f.rank && f.rank.color) name.style.color = f.rank.color;
+  who.append(name, el('span', '', statusOf(f)));
+  const acts = el('div', 'acts');
+  for (const [label, cls, fn] of buttons) {
+    const b = el('button', cls, label);
+    b.addEventListener('click', fn);
+    acts.appendChild(b);
+  }
+  card.append(img, who, acts);
+  return card;
+}
+
+async function friendAction(action, body, done) {
+  const res = await astra.server.friendAction(action, body);
+  if (!res.ok) return toast(res.error);
+  if (done) toast(done, true);
+  renderFriends(res.value);
+}
+
+async function loadFriends() {
+  const list = $('friend-list');
+  if (!state.account) {
+    list.replaceChildren(el('div', 'friend-empty', 'Sign in with Microsoft on the Play tab to see your friends.'));
+    return;
+  }
+  const res = await astra.server.friends();
+  if (!res.ok) {
+    list.replaceChildren(el('div', 'friend-empty', `Couldn't load friends: ${res.error}`));
+    return;
+  }
+  renderFriends(res.value);
+}
+
+function renderFriends(data) {
+  const reqBox = $('friend-requests');
+  reqBox.replaceChildren();
+  const badge = $('friends-badge');
+  badge.hidden = !data.incoming.length;
+  badge.textContent = String(data.incoming.length);
+  if (data.incoming.length || data.outgoing.length) {
+    const box = el('div', 'friend-requests-box');
+    box.appendChild(el('div', 'friend-section', 'Requests'));
+    const grid = el('div', 'friend-list');
+    for (const f of data.incoming) {
+      const card = friendCard({ ...f, playing: null, online: false }, [
+        ['Accept', 'primary', () => friendAction('accept', { uuid: f.uuid }, `You and ${f.name} are now friends.`)],
+        ['Decline', 'ghost', () => friendAction('remove', { uuid: f.uuid })]
+      ]);
+      card.querySelector('.who span').textContent = 'Wants to be friends';
+      grid.appendChild(card);
+    }
+    for (const f of data.outgoing) {
+      const card = friendCard({ ...f, playing: null, online: false }, [
+        ['Cancel', 'ghost', () => friendAction('remove', { uuid: f.uuid })]
+      ]);
+      card.querySelector('.who span').textContent = 'Request sent';
+      grid.appendChild(card);
+    }
+    box.appendChild(grid);
+    reqBox.appendChild(box);
+  }
+  const list = $('friend-list');
+  list.replaceChildren();
+  if (!data.friends.length) {
+    list.appendChild(el('div', 'friend-empty', 'No friends yet. Add someone by their Minecraft name above. They need to have launched Astra once.'));
+    return;
+  }
+  const online = data.friends.filter((f) => f.playing).length;
+  const head = el('div', 'friend-section', `Friends · ${online} in game`);
+  head.style.gridColumn = '1 / -1';
+  list.appendChild(head);
+  for (const f of data.friends) {
+    list.appendChild(friendCard(f, [
+      ['Remove', 'ghost', () => {
+        if (confirm(`Remove ${f.name} from your friends?`)) friendAction('remove', { uuid: f.uuid });
+      }]
+    ]));
+  }
+}
+
+$('friend-add').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const name = $('friend-name').value.trim();
+  if (!/^[A-Za-z0-9_]{1,16}$/.test(name)) return toast('Type a Minecraft name.');
+  $('friend-name').value = '';
+  friendAction('request', { name }, `Friend request sent to ${name}.`);
+});
+$('friends-refresh').addEventListener('click', loadFriends);
+$('friends-web').addEventListener('click', async () => {
+  const res = await astra.server.openWebsite('/friends');
+  if (!res.ok) toast(res.error);
+});
 
 // ---------------------------------------------------------------- logs view
 
@@ -395,6 +705,7 @@ function bindSettings(settings) {
     state.astraError = null;
     renderAstraAccount();
     loadAstra();
+    connectLive();
   });
 
   const java = $('java-path');
@@ -428,4 +739,6 @@ function bindSettings(settings) {
   renderVersions();
   renderAccount();
   loadAstra();
+  renderAccountsList();
+  connectLive();
 })();

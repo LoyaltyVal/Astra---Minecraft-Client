@@ -107,7 +107,8 @@ class PlayerService {
     const pr = player.presence;
     if (!pr || !pr.at || Date.now() - Date.parse(pr.at) > PRESENCE_MS) return null;
     if (!pr.version) return null;
-    return { server: pr.hidden ? null : pr.server, version: pr.version, hidden: pr.hidden };
+    const hidden = pr.hidden || Boolean(player.settings && player.settings.hideServer);
+    return { server: hidden ? null : pr.server, version: pr.version, hidden };
   }
 
   /** Everyone in game right now, staff first. */
@@ -163,6 +164,8 @@ class PlayerService {
       },
       ownedCount: cosmetics.ownedBy(p).length,
       playing: this.playing(p),
+      bio: (p.settings && p.settings.bio) || '',
+      discord: p.discord ? { username: p.discord.username } : null,
       banned: Boolean(p.banned)
     };
   }

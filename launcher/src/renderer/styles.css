@@ -278,3 +278,55 @@ input[type="text"] {
 .account-rank { font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 .cos-rarity { display: block; margin-top: 2px; font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .cos-rarity.rare { color: #4fc3f7; } .cos-rarity.epic { color: #b388ff; } .cos-rarity.legendary { color: #ffb35c; }
+
+/* ---------- friends ---------- */
+.nav { position: relative; }
+.nav-badge { position: absolute; top: 6px; right: 10px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--danger); color: #fff; font: 700 10px/16px inherit; font-style: normal; text-align: center; }
+.friend-add { display: flex; gap: 10px; margin-bottom: 16px; }
+.friend-add input { flex: 1; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; color: var(--text); padding: 10px 12px; font: inherit; }
+.friend-add input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.friend-section { margin: 4px 0 8px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.friend-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; padding-bottom: 8px; }
+.friend { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: var(--radius); background: var(--panel); border: 1px solid var(--line); }
+.friend.playing { border-color: rgba(61, 220, 151, .35); background: linear-gradient(90deg, rgba(61, 220, 151, .08), transparent 60%), var(--panel); }
+.friend img { width: 38px; height: 38px; border-radius: 8px; image-rendering: pixelated; flex: none; }
+.friend .who { flex: 1; min-width: 0; }
+.friend .who b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.friend .who span { display: block; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.friend.playing .who span { color: var(--ok); }
+.friend .acts { display: flex; gap: 6px; }
+.friend .acts button { padding: 6px 10px; font-size: 12px; }
+.friend-requests-box { margin-bottom: 16px; }
+.friend-empty { grid-column: 1 / -1; padding: 28px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: var(--radius); }
+
+/* ---------- account switcher ---------- */
+.account { position: relative; }
+.account-menu { position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 20; min-width: 260px; padding: 6px; border-radius: var(--radius); background: var(--panel-2); border: 1px solid var(--line-strong); box-shadow: 0 18px 40px rgba(0,0,0,.5); }
+.account-menu[hidden] { display: none; }
+.acct-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px; border: 0; border-radius: 8px; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.acct-row:hover { background: var(--panel-3); }
+.acct-row img { width: 28px; height: 28px; border-radius: 6px; image-rendering: pixelated; flex: none; }
+.acct-row .acct-name { flex: 1; min-width: 0; font-weight: 600; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.acct-row .acct-tag { color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.acct-remove { flex: none; width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; color: var(--muted); }
+.acct-remove:hover { background: rgba(255,92,122,.15); color: var(--danger); }
+.acct-sep { height: 1px; margin: 6px 4px; background: var(--line); }
+.acct-row.plain { color: var(--muted); font-weight: 600; font-size: 13px; }
+.acct-row.plain:hover { color: var(--text); }
+
+/* ---------- accounts in settings ---------- */
+.settings-title { max-width: 780px; margin: 22px 0 10px; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.settings-title:first-of-type { margin-top: 0; }
+.accounts-box { padding: 8px 12px; margin-bottom: 4px; }
+.accounts-list { display: grid; gap: 4px; }
+.acct-line { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 10px; }
+.acct-line:hover { background: var(--panel-2); }
+.acct-line img { width: 34px; height: 34px; border-radius: 7px; image-rendering: pixelated; flex: none; }
+.acct-line .who { flex: 1; min-width: 0; display: grid; }
+.acct-line .who b { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.acct-line .who span { font-size: 12px; color: var(--muted); }
+.acct-line.active .who span { color: var(--accent); font-weight: 600; }
+.acct-line.expired .who span, .acct-row .acct-tag.expired { color: var(--danger); }
+.acct-line button { padding: 6px 12px; font-size: 12.5px; }
+.accounts-actions { padding: 8px; border-top: 1px solid var(--line); margin-top: 4px; }
+.acct-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
