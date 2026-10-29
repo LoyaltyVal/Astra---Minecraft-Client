@@ -18,6 +18,7 @@ public abstract class TitleScreenMixin extends Screen {
     private static final int QUICK_JOIN = 0x4153_0001;
     private static final int FRIENDS = 0x4153_0002;
     private static final int SCREENSHOTS = 0x4153_0003;
+    private static final int ACCOUNTS = 0x4153_0004;
 
     /** A row of Astra buttons under Options / Quit Game. */
     @Inject(method = "init", at = @At("TAIL"))
@@ -32,6 +33,10 @@ public abstract class TitleScreenMixin extends Screen {
         this.buttons.add(new ButtonWidget(QUICK_JOIN, x, y, 66, 20, "Quick Join"));
         this.buttons.add(new ButtonWidget(FRIENDS, x + 67, y, 66, 20, "Friends"));
         this.buttons.add(new ButtonWidget(SCREENSHOTS, x + 134, y, 66, 20, "Screenshots"));
+        // Top-left: who you're playing as; opens the account switcher.
+        String name = Astra.platform().getSessionName();
+        int w = Math.min(150, this.textRenderer.getStringWidth(name) + 30);
+        this.buttons.add(new ButtonWidget(ACCOUNTS, 4, 4, w, 20, name + " \u25be"));
     }
 
     @Inject(method = "buttonClicked", at = @At("HEAD"), cancellable = true)
@@ -40,6 +45,8 @@ public abstract class TitleScreenMixin extends Screen {
             dev.astra.client.features.QuickJoinScreen.open();
         } else if (button.id == FRIENDS) {
             Astra.platform().openUi(new dev.astra.client.social.FriendsScreen());
+        } else if (button.id == ACCOUNTS) {
+            Astra.platform().openUi(new dev.astra.client.features.AccountsScreen());
         } else if (button.id == SCREENSHOTS) {
             Astra.platform().openUi(new dev.astra.client.features.ScreenshotsScreen());
         } else {

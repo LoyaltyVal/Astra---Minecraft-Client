@@ -1,6 +1,6 @@
 {
   "name": "astra-server",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "Astra Client backend: website, player accounts, ranks and server-side cosmetics.",
   "main": "src/index.js",
   "private": true,

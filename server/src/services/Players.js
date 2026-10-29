@@ -94,7 +94,7 @@ class PlayerService {
   setPresence(player, { server, version, hidden }) {
     player.presence = {
       server: cleanServer(server),
-      version: /^1\.\d+(\.\d+)?$/.test(String(version || '')) ? String(version) : null,
+      version: /^\d{1,2}\.\d{1,2}(\.\d{1,2})?$/.test(String(version || '')) ? String(version) : null,
       hidden: Boolean(hidden),
       at: new Date().toISOString()
     };
@@ -111,7 +111,20 @@ class PlayerService {
     return { server: hidden ? null : pr.server, version: pr.version, hidden };
   }
 
-  /** Everyone in game right now, staff first. */
+  /** True while the player's Astra game is open (it checks in every 30 seconds, menus included). */
+  inClient(player) {
+    const pr = player.presence;
+    return Boolean(pr && pr.at) && Date.now() - Date.parse(pr.at) <= PRESENCE_MS;
+  }
+
+  /** Everyone with Astra open right now (in a world or in the menus), staff first. */
+  onlineNow() {
+    return Object.values(this.store.players)
+      .filter((p) => !p.banned && this.inClient(p))
+      .sort((a, b) => rankOf(b).level - rankOf(a).level || a.name.localeCompare(b.name));
+  }
+
+  /** Everyone in a world right now, staff first. */
   inGame() {
     return Object.values(this.store.players)
       .filter((p) => !p.banned && this.playing(p))
@@ -157,6 +170,7 @@ class PlayerService {
       name: p.name,
       rank: { id: rank.id, name: rank.name, color: rank.color, mc: rank.mc, staff: rank.staff },
       online: this.isOnline(p),
+      inClient: this.inClient(p),
       joinedAt: p.joinedAt,
       equipped: {
         cape: p.equipped.cape ? cosmetics.summary(p.equipped.cape) : null,

@@ -4,7 +4,7 @@ import dev.astra.client.module.Category;
 import dev.astra.client.module.Module;
 import dev.astra.client.module.setting.BooleanSetting;
 import dev.astra.client.module.setting.NumberSetting;
-import org.lwjgl.opengl.Display;
+import dev.astra.client.input.Window;
 
 /**
  * FPS helpers: a lower frame limit while the game is in the background, no fog, fewer particles
@@ -33,7 +33,7 @@ public final class PerformanceModule extends Module {
 
     @Override
     public void onTick() {
-        boolean background = limitUnfocused.isOn() && !Display.isActive();
+        boolean background = limitUnfocused.isOn() && !Window.isActive();
         if (background && savedMaxFps == null) {
             savedMaxFps = mc().getMaxFps();
             mc().setMaxFps((int) unfocusedFps.getFloat());

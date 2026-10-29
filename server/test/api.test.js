@@ -210,8 +210,8 @@ test('the game reports which server you are on; IPs and LAN hosts stay private',
   const alice = await signIn(ALICE);
   await call('POST', '/api/me/presence', { token: alice.token, body: { server: 'mc.hypixel.net', version: '1.8.9' } });
   const online = await call('GET', '/api/online');
-  const a = online.json.players.find((p) => p.name === 'Alice');
-  assert.deepStrictEqual(a.playing, { server: 'mc.hypixel.net', version: '1.8.9', hidden: false });
+  assert.ok(online.json.online >= 1, 'everyone sees how many are online');
+  assert.deepStrictEqual(online.json.players, [], 'but not who: the list is only your friends');
   const profile = await call('GET', '/api/profile/Alice');
   assert.strictEqual(profile.json.player.playing.server, 'mc.hypixel.net');
 
@@ -222,8 +222,17 @@ test('the game reports which server you are on; IPs and LAN hosts stay private',
 
   // Back in the menus: no longer listed as in game.
   await call('POST', '/api/me/presence', { token: alice.token, body: { server: null, version: null } });
-  const after = await call('GET', '/api/online');
-  assert.ok(!after.json.players.some((p) => p.name === 'Alice'));
+  const after = await call('GET', '/api/profile/Alice');
+  assert.strictEqual(after.json.player.playing, null);
+  // ...but still online: Astra is open in the menus, so she counts in "N online on Astra".
+  assert.strictEqual(after.json.player.inClient, true);
+  const stillOnline = await call('GET', '/api/online');
+  assert.ok(stillOnline.json.online >= 1);
+
+  // Newer versions (26.x) are reported too.
+  await call('POST', '/api/me/presence', { token: alice.token, body: { server: 'mc.hypixel.net', version: '26.3' } });
+  const modern = await call('GET', '/api/profile/Alice');
+  assert.strictEqual(modern.json.player.playing.version, '26.3');
 });
 
 test('Discord: invite on the website, webhook posts staff actions', async () => {
@@ -246,6 +255,12 @@ test('friends: request, accept, message, remove; emotes show in the batch lookup
   assert.strictEqual(list.json.incoming[0].name, 'Alice');
   const acc = await call('POST', '/api/friends/accept', { token: owner.token, body: { uuid: ALICE.id } });
   assert.strictEqual(acc.status, 200);
+  await call('POST', '/api/me/presence', { token: alice.token, body: { server: 'mc.hypixel.net', version: '1.8.9' } });
+  const ownersView = await call('GET', '/api/online', { token: owner.token });
+  assert.deepStrictEqual(ownersView.json.players.map((p) => p.name), ['Alice'], 'friends in game are listed');
+  assert.ok(ownersView.json.online >= 1);
+  const friendsList = await call('GET', '/api/friends', { token: owner.token });
+  assert.ok(friendsList.json.online >= 1, 'the friends list carries the online count too');
   const sent = await call('POST', '/api/friends/messages', { token: alice.token, body: { to: 'AstraOwner', text: 'gg §cwp' } });
   assert.strictEqual(sent.json.message.text, 'gg cwp', 'colour codes are stripped');
   const inbox = await call('GET', '/api/friends/messages?since=0', { token: owner.token });
@@ -270,9 +285,8 @@ test('account settings: bio, hide server, friend requests off; Discord link need
   const profile = await call('GET', '/api/profile/Alice');
   assert.strictEqual(profile.json.player.bio, 'b bedwars /b main');
   await call('POST', '/api/me/presence', { token: alice.token, body: { server: 'mc.hypixel.net', version: '1.8.9' } });
-  const online = await call('GET', '/api/online');
-  const me = online.json.players.find((p) => p.name === 'Alice');
-  assert.strictEqual(me.playing.server, null, 'hidden by the account setting');
+  const online = await call('GET', '/api/profile/Alice');
+  assert.strictEqual(online.json.player.playing.server, null, 'hidden by the account setting');
   const req = await call('POST', '/api/friends/request', { token: owner.token, body: { name: 'Alice' } });
   assert.strictEqual(req.status, 400);
   const settings = await call('GET', '/api/me/settings', { token: alice.token });

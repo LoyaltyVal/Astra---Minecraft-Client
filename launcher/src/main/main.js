@@ -6,7 +6,8 @@ const store = require('./store');
 const paths = require('./paths');
 const log = require('./log');
 const astraServer = require('./astraServer');
-const { VERSIONS } = require('./config');
+const { KNOWN_VERSIONS } = require('./config');
+const { availableVersions } = require('./mods');
 const { launchGame, isRunning, killGame } = require('./launch');
 
 let win = null;
@@ -81,6 +82,10 @@ const ui = {
   progress(p) {
     send('launch:progress', p);
   },
+  /** The in-game account switcher changed the account: the launcher page follows. */
+  accountChanged(account) {
+    send('account:changed', account);
+  },
   log(line) {
     log.write(line);
     send('launch:log', line);
@@ -98,9 +103,18 @@ function handle(channel, fn) {
   });
 }
 
+function builtVersions() {
+  return availableVersions({
+    packaged: app.isPackaged,
+    bundledDir: paths.bundledModsDir(),
+    gradleDir: paths.gradleProjectDir()
+  });
+}
+
 handle('app:info', () => ({
   version: app.getVersion(),
-  versions: VERSIONS,
+  versions: builtVersions(),
+  knownVersions: KNOWN_VERSIONS,
   running: isRunning(),
   gameFolder: paths.root()
 }));

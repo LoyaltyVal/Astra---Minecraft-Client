@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('astra', {
   },
 
   onState: (fn) => ipcRenderer.on('launch:state', (_e, data) => fn(data)),
+  onAccountChanged: (fn) => ipcRenderer.on('account:changed', (_e, account) => fn(account)),
   onProgress: (fn) => ipcRenderer.on('launch:progress', (_e, data) => fn(data)),
   onLog: (fn) => ipcRenderer.on('launch:log', (_e, line) => fn(line)),
 

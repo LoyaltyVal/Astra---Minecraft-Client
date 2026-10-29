@@ -192,6 +192,8 @@ footer nav a:hover { color: var(--star); }
 .chip b { font: 600 11px/1 var(--font-mono); color: var(--violet); }
 .chip.on { background: var(--violet); border-color: var(--violet); }
 .chip.on b { color: #fff; }
+.online-total { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 22px; padding: 10px 16px; border: 1px solid var(--line); border-radius: 999px; color: var(--dust); }
+.online-total b { color: var(--star); font-size: 18px; font-variant-numeric: tabular-nums; }
 .list-title { display: flex; align-items: center; gap: 10px; font-size: 20px; margin-bottom: 14px; }
 .where { color: var(--dust); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .playing { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px;
@@ -288,3 +290,4 @@ footer nav a:hover { color: var(--star); }
 
 .fr-live { display: inline-block; width: 7px; height: 7px; margin-left: 8px; border-radius: 50%; background: var(--line); vertical-align: middle; }
 .fr-live.on { background: var(--mint); box-shadow: 0 0 6px var(--mint); }
+.finder + .list-title { margin-top: 30px; }

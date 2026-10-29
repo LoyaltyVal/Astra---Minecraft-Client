@@ -54,6 +54,67 @@ public interface Platform {
     /** Draws part of a vanilla GUI texture (e.g. "textures/gui/icons.png"), 256x256 UV space. */
     void drawGuiTexture(String path, int x, int y, int u, int v, int width, int height);
 
+    // ---- 2D/3D drawing primitives (act on the current render context's matrix) ----
+
+    void pushMatrix();
+
+    void popMatrix();
+
+    void translate(float x, float y, float z);
+
+    void scale(float x, float y, float z);
+
+    /** Rotates by angle degrees around the axis (x, y, z). */
+    void rotate(float angle, float x, float y, float z);
+
+    /** A textured quad in GUI coordinates (UVs 0..1), drawn white and alpha-blended. */
+    void drawTexture(Object handle, float x, float y, float w, float h, float u0, float v0, float u1, float v1);
+
+    /**
+     * A solid triangle strip in GUI coordinates: xy holds x0, y0, x1, y1, ... (used for rings).
+     */
+    void fillTriangleStrip(float[] xy, int argb);
+
+    /**
+     * A textured quad in the XY plane of the current (world) matrix, from (x0, y0) to (x1, y1):
+     * double-sided, smoothly filtered and alpha-blended (cosmetic wings).
+     */
+    void drawWorldQuad(Object handle, float x0, float y0, float x1, float y1, float u0, float v0, float u1, float v1);
+
+    /** Clips drawing to a rectangle in scaled GUI coordinates until {@link #endScissor()}. */
+    void scissor(int x, int y, int w, int h);
+
+    void endScissor();
+
+    // ---- input (key codes are LWJGL 2's, as in 1.7/1.8; newer versions translate from GLFW) ----
+
+    boolean isKeyDown(int key);
+
+    /** The key's short name ("A", "LSHIFT", "F5"), or null for unknown codes. */
+    String getKeyName(int key);
+
+    /** 0 = left, 1 = right, 2 = middle, more for side buttons. */
+    boolean isMouseButtonDown(int button);
+
+    int getMouseButtonCount();
+
+    /** Scroll since the last call (positive = up), like LWJGL 2's Mouse.getDWheel(). */
+    int consumeScroll();
+
+    // ---- window ----
+
+    /** The window's size in real pixels. */
+    int getWindowWidth();
+
+    int getWindowHeight();
+
+    boolean isWindowFocused();
+
+    void setWindowTitle(String title);
+
+    /** Turns borderless fullscreen on or off; returns whether it's on now. */
+    boolean setBorderless(boolean on);
+
     // ---- textures & GL state for cosmetics ----
 
     /** Uploads an image as a texture; returns a handle for {@link #bindTexture}. */
@@ -92,9 +153,6 @@ public interface Platform {
 
     /** The key bound to Sprint in Minecraft's controls (LWJGL code; negative = mouse button). */
     int getSprintKeyCode();
-
-    /** Starts sprinting when vanilla would allow it (moving forward, not sneaking, enough food). */
-    void sprintIfPossible();
 
     /** Armor from helmet to boots; null entries for empty slots. Empty array when not in game. */
     HudData.Item[] getArmor();
@@ -151,6 +209,15 @@ public interface Platform {
     java.nio.FloatBuffer getModelViewMatrix();
 
     java.nio.FloatBuffer getProjectionMatrix();
+
+    /** Leaves the current world or server (like Disconnect in the pause menu). */
+    void leaveWorld();
+
+    /** The Minecraft account the game is signed in as. */
+    String getSessionName();
+
+    /** Switches the game to another account (only while not in a world). */
+    void setSession(String name, String uuid, String accessToken);
 
     /** Leaves the current world (if any) and connects to a multiplayer server. */
     void joinServer(String address);

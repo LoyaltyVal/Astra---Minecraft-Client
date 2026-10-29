@@ -6,8 +6,7 @@ import dev.astra.client.ui.Theme;
 import dev.astra.client.ui.UiScreen;
 import dev.astra.client.util.Colors;
 import dev.astra.client.util.Render;
-import org.lwjgl.input.Keyboard;
-import org.lwjgl.opengl.GL11;
+import dev.astra.client.input.Keyboard;
 
 /**
  * The emote wheel. Hold the key, point at an emote and let go; or tap the key and click one.
@@ -100,20 +99,17 @@ public final class EmoteWheelScreen extends UiScreen {
     }
 
     private static void arc(int cx, int cy, int outer, int inner, double from, double to, int argb) {
-        Astra.platform().texture2d(false);
-        Astra.platform().blend(true);
-        Astra.platform().color(((argb >> 16) & 255) / 255f, ((argb >> 8) & 255) / 255f, (argb & 255) / 255f, ((argb >>> 24) & 255) / 255f);
-        GL11.glBegin(GL11.GL_TRIANGLE_STRIP);
         int steps = Math.max(8, (int) ((to - from) * 24));
+        float[] xy = new float[(steps + 1) * 4];
         for (int i = 0; i <= steps; i++) {
             double a = from + (to - from) * i / steps;
             float c = (float) Math.cos(a);
             float s = (float) Math.sin(a);
-            GL11.glVertex2f(cx + c * outer, cy + s * outer);
-            GL11.glVertex2f(cx + c * inner, cy + s * inner);
+            xy[i * 4] = cx + c * outer;
+            xy[i * 4 + 1] = cy + s * outer;
+            xy[i * 4 + 2] = cx + c * inner;
+            xy[i * 4 + 3] = cy + s * inner;
         }
-        GL11.glEnd();
-        Astra.platform().texture2d(true);
-        Astra.platform().color(1f, 1f, 1f, 1f);
+        Astra.platform().fillTriangleStrip(xy, argb);
     }
 }

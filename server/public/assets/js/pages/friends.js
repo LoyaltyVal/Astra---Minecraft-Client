@@ -6,7 +6,7 @@ const status = (f) => {
     if (!f.playing.server) return `In game · ${f.playing.version}`;
     return f.playing.server === 'singleplayer' ? 'Playing singleplayer' : `On ${f.playing.server}`;
   }
-  return f.online ? 'Online' : 'Offline';
+  return f.inClient ? 'In the menus' : f.online ? 'Online' : 'Offline';
 };
 
 /** Friends list, requests and a message thread, kept fresh by polling. */

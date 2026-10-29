@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const paths = require('./paths');
+const { KNOWN_VERSIONS, MODRINTH_API, compareVersions, describe } = require('./config');
+const { fetchJson, downloadFile } = require('./download');
 
 const MOD_FILE = 'astra.jar';
 
@@ -40,6 +42,45 @@ function findModJar(gameVersion, { packaged, bundledDir, gradleDir }) {
   return candidates.length ? candidates[0].file : null;
 }
 
+function listDirs(dir) {
+  try {
+    return fs.readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * The versions that have an Astra build (newest first): every known release plus any other
+ * version folder found in the project or the installer, so a new port shows up on its own.
+ */
+function availableVersions({ packaged, bundledDir, gradleDir }) {
+  const ids = new Set(KNOWN_VERSIONS);
+  for (const name of listDirs(bundledDir)) ids.add(name);
+  if (!packaged) for (const name of listDirs(path.join(gradleDir, 'versions'))) ids.add(name);
+  return [...ids]
+    .filter((id) => /^\d+(\.\d+){1,2}$/.test(id))
+    .filter((id) => findModJar(id, { packaged, bundledDir, gradleDir }))
+    .sort((a, b) => compareVersions(b, a))
+    .map(describe);
+}
+
+/** The newest modification time of any file under `dir` (0 if it doesn't exist). */
+function newestFile(dir) {
+  let newest = 0;
+  let entries;
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return 0;
+  }
+  for (const e of entries) {
+    const full = path.join(dir, e.name);
+    newest = Math.max(newest, e.isDirectory() ? newestFile(full) : fs.statSync(full).mtimeMs);
+  }
+  return newest;
+}
+
 /** Copies the Astra jar into instances/<mc>/mods/astra.jar, replacing any older Astra jar. */
 function installMod(gameVersion, log) {
   const { app } = require('electron');
@@ -52,6 +93,20 @@ function installMod(gameVersion, log) {
     throw new Error(
       `Astra for ${gameVersion} isn't built yet. Run "gradlew build" in the project folder, then launch again.`
     );
+  }
+
+  // In development, refuse to launch an old build: code changes only take effect after a rebuild.
+  if (!app.isPackaged) {
+    const gradleDir = paths.gradleProjectDir();
+    const sources = Math.max(
+      newestFile(path.join(gradleDir, 'common', 'src')),
+      newestFile(path.join(gradleDir, 'versions', gameVersion, 'src'))
+    );
+    if (sources > fs.statSync(source).mtimeMs + 2000) {
+      throw new Error(
+        `The Astra code changed since it was last built. Run "gradlew build" in the project folder, then launch again.`
+      );
+    }
   }
 
   const modsDir = path.join(paths.instanceDir(gameVersion), 'mods');
@@ -68,4 +123,47 @@ function installMod(gameVersion, log) {
   log(`[Astra] Installed ${path.basename(source)} into ${modsDir}`);
 }
 
-module.exports = { installMod, findModJar, isReleaseJar };
+const FABRIC_API_FILE = 'fabric-api.jar';
+
+/**
+ * Modern Astra builds need Fabric API. Downloads the newest release for the game version from
+ * Modrinth into the instance's mods folder (checked by sha1), replacing other Fabric API jars.
+ * When Modrinth can't be reached, an already installed copy is kept.
+ */
+async function ensureFabricApi(gameVersion, onProgress, log) {
+  const modsDir = path.join(paths.instanceDir(gameVersion), 'mods');
+  const dest = path.join(modsDir, FABRIC_API_FILE);
+  const marker = path.join(modsDir, '.astra-fabric-api.json');
+  onProgress({ label: 'Checking Fabric API', current: 0, total: 1 });
+
+  let file;
+  try {
+    const q = `loaders=${encodeURIComponent('["fabric"]')}&game_versions=${encodeURIComponent(JSON.stringify([gameVersion]))}`;
+    const versions = await fetchJson(`${MODRINTH_API}/project/fabric-api/version?${q}`);
+    const pick = versions.find((v) => v.version_type === 'release') || versions[0];
+    file = pick && (pick.files.find((f) => f.primary) || pick.files[0]);
+    if (!file) throw new Error(`no Fabric API for ${gameVersion} yet`);
+    file.versionName = pick.version_number;
+  } catch (e) {
+    if (fs.existsSync(dest)) {
+      log(`[Astra] Couldn't check Fabric API (${e.message}); using the installed copy.`);
+      return;
+    }
+    throw new Error(`Couldn't download Fabric API for ${gameVersion} (${e.message}).`);
+  }
+
+  fs.mkdirSync(modsDir, { recursive: true });
+  // Other Fabric API jars (from earlier downloads or added by hand) would be loaded twice.
+  for (const name of fs.readdirSync(modsDir)) {
+    if (name !== FABRIC_API_FILE && /^fabric-api.*\.jar$/i.test(name)) {
+      fs.rmSync(path.join(modsDir, name), { force: true });
+    }
+  }
+  onProgress({ label: `Downloading Fabric API ${file.versionName}`, current: 0, total: 1 });
+  const changed = await downloadFile(file.url, dest, file.hashes && file.hashes.sha1);
+  fs.writeFileSync(marker, JSON.stringify({ version: file.versionName, gameVersion }, null, 2));
+  if (changed) log(`[Astra] Installed Fabric API ${file.versionName}`);
+  onProgress({ label: `Downloading Fabric API ${file.versionName}`, current: 1, total: 1 });
+}
+
+module.exports = { installMod, findModJar, isReleaseJar, availableVersions, ensureFabricApi };

@@ -15,8 +15,34 @@ const store = require('./store');
  * The Astra session token that comes back is stored encrypted and passed to the game.
  */
 
+/** Free Cloudflare quick-tunnel addresses change every time hosting restarts. */
+function isQuickTunnel(url) {
+  return /\.trycloudflare\.com$/i.test(String(url).replace(/^https?:\/\//, '').replace(/[/:].*$/, ''));
+}
+
+/**
+ * On the PC that hosts Astra (running the launcher from the project folder), the address that
+ * "Host Astra Online" last printed, from server/data/online-address.txt.
+ */
+function hostedAddress() {
+  if (app.isPackaged) return null;
+  try {
+    const url = fs.readFileSync(path.join(__dirname, '..', '..', '..', 'server', 'data', 'online-address.txt'), 'utf8').trim();
+    return /^https?:\/\/\S+$/.test(url) ? url.replace(/\/+$/, '') : null;
+  } catch {
+    return null;
+  }
+}
+
 function serverUrl() {
-  return String(store.get().serverUrl || '').replace(/\/+$/, '');
+  const configured = String(store.get().serverUrl || '').replace(/\/+$/, '');
+  // A quick-tunnel address in Settings goes stale when hosting restarts; follow the new one.
+  const hosted = hostedAddress();
+  if (hosted && hosted !== configured && (!configured || isQuickTunnel(configured))) {
+    store.set({ serverUrl: hosted });
+    return hosted;
+  }
+  return configured;
 }
 
 /** Astra sessions, one per Minecraft account and server, so switching accounts is instant. */
@@ -89,7 +115,16 @@ async function request(method, p, { token, body } = {}) {
   }
   const data = await res.json().catch(() => null);
   if (!res.ok) {
-    const err = new Error((data && data.error) || `The Astra server answered ${res.status}.`);
+    // Cloudflare answers 52x/530 when the tunnel (or the PC hosting the server) is offline.
+    const offline = [502, 503, 504, 520, 521, 522, 523, 524, 530].includes(res.status);
+    const expired = res.status === 530 && isQuickTunnel(base);
+    const err = new Error((data && data.error)
+      || (expired
+        ? 'This temporary server address has expired (it changes every time hosting restarts). Paste the new one in Settings, or set up a permanent address.'
+        : offline
+        ? 'The Astra server is offline right now. Cosmetics and friends come back when it does.'
+        : `The Astra server answered ${res.status}.`));
+    err.offline = offline;
     err.status = res.status;
     throw err;
   }
@@ -97,37 +132,50 @@ async function request(method, p, { token, body } = {}) {
 }
 
 /** Signs in to the Astra server with the Minecraft account (see the comment at the top). */
-async function signIn() {
-  const mc = await auth.getLaunchAuth(); // refreshed Minecraft token + profile
+async function signIn(accountId) {
+  let mc = await auth.getLaunchAuth({ id: accountId }); // cached Minecraft token (refreshed when needed)
   const uuid = String(mc.uuid).replace(/-/g, '');
   const { serverId } = await request('POST', '/api/auth/challenge');
-  let joined;
-  try {
-    joined = await fetch('https://sessionserver.mojang.com/session/minecraft/join', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accessToken: mc.access_token, selectedProfile: uuid, serverId }),
-      signal: AbortSignal.timeout(10000)
-    });
-  } catch {
-    throw new Error("Couldn't reach Mojang to confirm your account.");
+  const join = async (token) => {
+    try {
+      return await fetch('https://sessionserver.mojang.com/session/minecraft/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessToken: token, selectedProfile: uuid, serverId }),
+        signal: AbortSignal.timeout(10000)
+      });
+    } catch {
+      throw new Error("Couldn't reach Mojang to confirm your account.");
+    }
+  };
+  let joined = await join(mc.access_token);
+  if (joined.status === 401 || joined.status === 403) {
+    // The saved Minecraft token was revoked early (e.g. signed in elsewhere): get a fresh one once.
+    mc = await auth.getLaunchAuth({ id: accountId, force: true });
+    joined = await join(mc.access_token);
+  }
+  if (joined.status === 429) {
+    throw new Error("Mojang is rate-limiting sign-ins right now. Wait a minute and try again.");
   }
   if (joined.status !== 204 && joined.status !== 200) {
-    throw new Error(`Mojang didn't accept the sign-in (${joined.status}). Try signing out and in again.`);
+    throw new Error(`Mojang didn't accept the sign-in (${joined.status}). Try again in a minute.`);
   }
   const { token, player } = await request('POST', '/api/auth/verify', { body: { username: mc.name, uuid, serverId } });
   writeSession(serverUrl(), uuid, token);
   return { token, player };
 }
 
+const signingIn = new Map(); // "server|uuid" -> Promise, so parallel requests share one sign-in
+
 /**
- * A working Astra session for the signed-in Minecraft account, signing in again when needed.
- * Returns { token, player }.
+ * A working Astra session for an account (the active one by default), signing in again when
+ * needed. Returns { token, player }.
  */
-async function session() {
-  const account = auth.getAccount();
+async function session(accountId) {
+  const account = accountId ? auth.getProfile(accountId) : auth.getAccount();
   if (!account) throw new Error('Sign in with Microsoft first.');
   const uuid = String(account.id).replace(/-/g, '');
+  const key = `${serverUrl()}|${uuid}`;
   const saved = readSession(serverUrl(), uuid);
   if (saved) {
     try {
@@ -137,7 +185,10 @@ async function session() {
       if (e.status !== 401) throw e;
     }
   }
-  return signIn();
+  if (!signingIn.has(key)) {
+    signingIn.set(key, signIn(account.id).finally(() => signingIn.delete(key)));
+  }
+  return signingIn.get(key);
 }
 
 // ---- what the launcher page uses ----

@@ -17,9 +17,8 @@ import dev.astra.client.module.setting.Setting;
 import dev.astra.client.util.Colors;
 import dev.astra.client.util.Keys;
 import dev.astra.client.util.Render;
-import org.lwjgl.input.Keyboard;
-import org.lwjgl.input.Mouse;
-import org.lwjgl.opengl.GL11;
+import dev.astra.client.input.Keyboard;
+import dev.astra.client.input.Mouse;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -235,8 +234,8 @@ public final class ModMenuScreen extends UiScreen {
         if (Theme.dimBackground()) {
             Render.rect(0, 0, width, height, Colors.withAlpha(Theme.OVERLAY, (int) (Colors.alpha(Theme.OVERLAY) * ease)));
         }
-        GL11.glPushMatrix();
-        GL11.glTranslatef(0f, (1f - ease) * 10f, 0f);
+        Astra.platform().pushMatrix();
+        Astra.platform().translate(0f, (1f - ease) * 10f, 0f);
 
         drawLogo();
         drawTopButtons(mx, my);
@@ -255,7 +254,7 @@ public final class ModMenuScreen extends UiScreen {
         Render.endScissor();
         drawScrollbar();
 
-        GL11.glPopMatrix();
+        Astra.platform().popMatrix();
         drawCornerButtons(mx, my);
     }
 
@@ -429,6 +428,15 @@ public final class ModMenuScreen extends UiScreen {
         if (m instanceof HudModule) {
             ((HudModule) m).drawPreview(x + w / 2f, previewCenterY, w - 16, PREVIEW_H - 4);
             Astra.platform().color(1f, 1f, 1f, 1f);
+        } else if (ModuleIcons.has(m)) {
+            // Its picture, gently bobbing while hovered, with the short summary under it.
+            float bob = (float) Math.sin(System.currentTimeMillis() / 220.0) * 1.5f * h;
+            ModuleIcons.draw(m, x + w / 2f, previewCenterY - 5 - bob, 2);
+            String text = m.getPreviewText();
+            if (text != null && !text.isEmpty() && !text.equals(m.getName())) {
+                Render.textCentered(Render.trim(text, w - 10), x + w / 2f, previewCenterY + 13,
+                        m.isEnabled() ? 0xD8FFFFFF : Theme.SUBTEXT, false);
+            }
         } else {
             Render.textCentered(Render.trim(m.getPreviewText(), w - 10), x + w / 2f, previewCenterY - 4, Theme.TEXT, true);
         }

@@ -77,21 +77,65 @@ $('win-close').addEventListener('click', () => astra.window.close());
 
 // ---------------------------------------------------------------- versions
 
+/** Built versions grouped by family ("1.21" holds 1.21.11, 1.21.4, ...), in the order given (newest first). */
+function versionFamilies() {
+  const families = [];
+  for (const v of state.versions) {
+    let fam = families.find((f) => f.family === v.family);
+    if (!fam) families.push((fam = { family: v.family, subtitle: v.subtitle, versions: [] }));
+    fam.versions.push(v);
+  }
+  return families;
+}
+
+function selectVersion(id) {
+  if (state.phase !== 'idle') return;
+  state.selected = id;
+  astra.saveSettings({ lastVersion: id });
+  renderVersions();
+}
+
 function renderVersions() {
   const root = $('versions');
   root.innerHTML = '';
-  for (const v of state.versions) {
-    const btn = el('button', 'version');
+  const families = versionFamilies();
+  root.classList.toggle('many', families.length > 3);
+  if (!families.length) {
+    root.append(el('p', 'versions-empty', 'No Astra builds yet. Run Start Astra.bat to build them.'));
+    return;
+  }
+  for (const fam of families) {
+    const chosen = fam.versions.find((v) => v.id === state.selected);
+    const shown = chosen || fam.versions[0];
+    const btn = el('div', 'version');
+    btn.tabIndex = 0;
     btn.setAttribute('role', 'radio');
-    btn.setAttribute('aria-checked', String(v.id === state.selected));
+    btn.setAttribute('aria-checked', String(Boolean(chosen)));
+    btn.setAttribute('aria-label', `Minecraft ${shown.id}`);
     const top = el('div', 'version-top');
-    top.append(el('span', 'version-name', v.title), el('span', 'version-dot'));
-    btn.append(top, el('div', 'version-sub', v.subtitle));
-    btn.addEventListener('click', () => {
-      if (state.phase !== 'idle') return;
-      state.selected = v.id;
-      astra.saveSettings({ lastVersion: v.id });
-      renderVersions();
+    top.append(el('span', 'version-name', fam.versions.length > 1 ? fam.family : shown.id), el('span', 'version-dot'));
+    btn.append(top, el('div', 'version-sub', fam.subtitle));
+    if (fam.versions.length > 1) {
+      // Several releases of this line are built: pick the exact one.
+      const pick = el('select', 'version-patch');
+      pick.setAttribute('aria-label', `Minecraft ${fam.family} release`);
+      for (const v of fam.versions) {
+        const o = el('option', null, v.id);
+        o.value = v.id;
+        o.selected = v.id === shown.id;
+        pick.append(o);
+      }
+      pick.addEventListener('click', (e) => e.stopPropagation());
+      pick.addEventListener('change', () => selectVersion(pick.value));
+      pick.disabled = state.phase !== 'idle';
+      btn.append(pick);
+    }
+    btn.addEventListener('click', () => selectVersion(shown.id));
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        selectVersion(shown.id);
+      }
     });
     root.appendChild(btn);
   }
@@ -551,7 +595,7 @@ function statusOf(f) {
     if (!f.playing.server) return `In game · ${f.playing.version}`;
     return f.playing.server === 'singleplayer' ? 'Playing singleplayer' : `On ${f.playing.server}`;
   }
-  return f.online ? 'Online' : 'Offline';
+  return f.inClient ? 'In the menus' : f.online ? 'Online' : 'Offline';
 }
 
 function friendCard(f, buttons) {
@@ -596,6 +640,10 @@ async function loadFriends() {
 }
 
 function renderFriends(data) {
+  // Everyone in game on Astra (the list below is only your friends).
+  const pill = $('friends-online');
+  pill.hidden = typeof data.online !== 'number';
+  if (!pill.hidden) pill.textContent = `${data.online.toLocaleString()} on Astra`;
   const reqBox = $('friend-requests');
   reqBox.replaceChildren();
   const badge = $('friends-badge');
@@ -717,11 +765,29 @@ function bindSettings(settings) {
 
 // ---------------------------------------------------------------- start
 
+// The in-game account switcher switched accounts: follow along.
+astra.onAccountChanged((account) => {
+  if (account && (!state.account || account.id !== state.account.id)) {
+    accountChanged(account, `Switched to ${account.name} in game`);
+  } else {
+    renderAccountsList();
+  }
+});
+
 (async function init() {
   const [info, settings, account] = await Promise.all([astra.info(), astra.settings(), astra.account()]);
 
   if (info.ok) {
     state.versions = info.value.versions;
+    const ids = state.versions.map((v) => v.id);
+    if (ids.length) {
+      $('hero-versions').textContent =
+        ids.length === 1
+          ? `PvP client for Minecraft ${ids[0]}`
+          : ids.length === 2
+          ? `PvP client for Minecraft ${ids[0]} & ${ids[1]}`
+          : `PvP client for Minecraft ${ids[ids.length - 1]} to ${ids[0]}`;
+    }
     $('app-version').textContent = `Astra Launcher ${info.value.version}`;
     $('game-folder').textContent = `${info.value.gameFolder}  (one folder per version)`;
     if (info.value.running) state.phase = 'running';
@@ -729,6 +795,8 @@ function bindSettings(settings) {
   if (settings.ok) {
     if (state.versions.some((v) => v.id === settings.value.lastVersion)) {
       state.selected = settings.value.lastVersion;
+    } else if (state.versions.length && !state.versions.some((v) => v.id === state.selected)) {
+      state.selected = state.versions[0].id;
     }
     bindSettings(settings.value);
   }

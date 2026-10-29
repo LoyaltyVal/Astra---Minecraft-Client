@@ -6,7 +6,7 @@ import dev.astra.client.module.setting.BooleanSetting;
 import dev.astra.client.module.setting.KeySetting;
 import dev.astra.client.module.setting.NumberSetting;
 import dev.astra.client.util.Keys;
-import org.lwjgl.input.Keyboard;
+import dev.astra.client.input.Keyboard;
 
 /** Hold the zoom key to zoom in, like OptiFine zoom. */
 public final class ZoomModule extends Module {

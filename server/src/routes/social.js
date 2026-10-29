@@ -34,7 +34,8 @@ function socialRoutes(router, ctx) {
       friends: list.map(view),
       incoming: me.requests.map((u) => players.get(u)).filter(Boolean).map(view),
       outgoing: social.outgoing(me).map(view),
-      lastMessageId: ctx.store.data.nextMessageId - 1
+      lastMessageId: ctx.store.data.nextMessageId - 1,
+      online: players.onlineNow().length // everyone with Astra open, for "N on Astra" headers
     });
   });
 

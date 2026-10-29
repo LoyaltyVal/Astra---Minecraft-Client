@@ -163,10 +163,24 @@ export class SiteChrome {
   /** Points every .js-download link at the configured installer, or explains it's coming soon. */
   wireDownloads() {
     const url = this.meta && this.meta.downloadUrl;
+    const info = this.meta && this.meta.download;
+    if (url && info) {
+      // "Astra 1.0.0 · 92 MB · Windows 10 & 11, 64-bit"
+      const parts = [];
+      if (info.version) parts.push(`Astra ${info.version}`);
+      if (info.size) parts.push(`${Math.max(1, Math.round(info.size / 1048576))} MB`);
+      parts.push('Windows 10 & 11, 64-bit');
+      document.querySelectorAll('.js-download-note').forEach((p) => { p.textContent = parts.join(' · '); });
+    }
     document.querySelectorAll('.js-download').forEach((a) => {
       if (url) {
         a.href = url;
         a.rel = 'noopener';
+        a.setAttribute('download', '');
+        // Astra isn't code-signed yet, so Windows warns the first time it's run.
+        a.addEventListener('click', () => {
+          Toast.show('Downloading. If Windows says "Windows protected your PC", click More info, then Run anyway.');
+        });
       } else {
         a.addEventListener('click', (e) => {
           e.preventDefault();

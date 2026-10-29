@@ -102,7 +102,11 @@ Astra only includes visual and quality-of-life features. There's no reach, autoc
 3. Pick **1.8.9** or **1.7.10** and press **Launch**. The first launch downloads the game, which takes a few minutes.
 4. In game, press **Right Shift** to open the Astra menu (it opens on the HUD editor; the centre **Mods** button opens the menu). **Shift + Tab** opens Friends and **B** opens the emote wheel.
 
-Several Microsoft accounts can be saved: click **Switch account** under your name on the Play tab, or manage them all in **Settings → Accounts**. Each account keeps its own Astra sign-in, so switching is instant. If Microsoft's sign-in for an account expires, it's marked **Sign in again**. Close Minecraft before switching. Resource packs can sit in sub-folders of `resourcepacks` (for example `resourcepacks\PvP\…`) and still show up in game. Your keybinds and settings come from your normal `.minecraft`.
+Several Microsoft accounts can be saved: click **Switch account** under your name on the Play tab, or manage them all in **Settings → Accounts**. Each account keeps its own Astra sign-in, so switching is instant. If Microsoft's sign-in for an account expires, it's marked **Sign in again**.
+
+**Switch accounts in game** without restarting: click your name in the top-left of the title screen, or next to Friends in the HUD editor (Right Shift). Pick an account or add one (Microsoft's sign-in window opens from the Astra app, sometimes behind the game). Switching leaves the world or server you're on. Your accounts stay in the Astra app: the game asks it through a private connection on your own PC (only reachable from this computer, protected by a random key for each game session).
+
+**Signing in.** The app keeps each account's Minecraft token for its whole lifetime (about a day), so it only signs in to Microsoft, Xbox and Minecraft when needed, once at a time. If Minecraft's sign-in is busy (it limits how often you can sign in), the app waits and tries again, and keeps using the token it has. An account is only marked **Sign in again** when Microsoft really rejects the saved sign-in. Resource packs can sit in sub-folders of `resourcepacks` (for example `resourcepacks\PvP\…`) and still show up in game. Your keybinds and settings come from your normal `.minecraft`.
 
 | Where | What's there |
 |---|---|
@@ -195,7 +199,7 @@ Players' games and apps need to reach your server over the internet. Cloudflare 
 
 **Being the Owner:** keep your Minecraft name in `owners`. Make trusted friends Moderators (they review uploads and ban) or Admins from the admin panel's **Players** tab. You can add a player by name before they've joined.
 
-**Back up `server/data/`** now and then. It holds every player, cosmetic, friend list and message. If you later move to a VPS, copy `server/` (with `data/` and `config.json`) and run the same commands there.
+The server keeps a copy of its database for each of the last 14 days in `server/data/backups`, and `Host Astra Online.bat` starts the server again by itself if it ever stops. Still, **copy `server/data/` somewhere else** now and then. It holds every player, cosmetic, friend list and message. If you later move to a VPS, copy `server/` (with `data/` and `config.json`) and run the same commands there.
 
 ### Or: a free DuckDNS address (no domain to buy)
 

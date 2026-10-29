@@ -36,7 +36,7 @@ function serveFile(res, root, relPath, req) {
   const etag = `"${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}"`;
   const headers = {
     'Content-Type': TYPES[ext] || 'application/octet-stream',
-    'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=3600',
+    'Cache-Control': ext === '.html' || ext === '.exe' ? 'no-cache' : 'public, max-age=3600',
     ETag: etag,
     'X-Content-Type-Options': 'nosniff'
   };

@@ -5,7 +5,7 @@ import dev.astra.client.ui.Theme;
 import dev.astra.client.ui.UiScreen;
 import dev.astra.client.util.Colors;
 import dev.astra.client.util.Render;
-import org.lwjgl.input.Keyboard;
+import dev.astra.client.input.Keyboard;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +36,9 @@ public final class FriendsScreen extends UiScreen {
                     close();
                 }
             });
+    /** The Radio tab. */
+    private boolean radioTab;
+    private final dev.astra.client.features.RadioPanel radio = new dev.astra.client.features.RadioPanel();
     private String selected;
     private int focus = FIELD_NONE;
     private String addText = "";
@@ -60,6 +63,13 @@ public final class FriendsScreen extends UiScreen {
         return s;
     }
 
+    /** Opens straight on the Radio tab. */
+    public static FriendsScreen radio() {
+        FriendsScreen s = new FriendsScreen();
+        s.radioTab = true;
+        return s;
+    }
+
     private static SocialManager social() {
         return Astra.get().getSocial();
     }
@@ -75,7 +85,7 @@ public final class FriendsScreen extends UiScreen {
                 break;
             }
         }
-        if (selected == null && !serversTab && !social().getIncoming().isEmpty()) {
+        if (selected == null && !serversTab && !radioTab && !social().getIncoming().isEmpty()) {
             requestsTab = true;
         }
     }
@@ -143,7 +153,16 @@ public final class FriendsScreen extends UiScreen {
         aurora(px + 6, py, pw - 12, ease);
 
         drawLeft(mx, my);
-        if (serversTab) {
+        if (radioTab) {
+            int rx = px + leftW + 12;
+            int rw = pw - leftW - 24;
+            dev.astra.client.features.RadioPlayer rp = dev.astra.client.features.RadioPlayer.get();
+            Render.text("Radio", rx, py + 12, Theme.TEXT, false);
+            String status = rp.getStatus();
+            Render.text(Render.trim(status, rw - 40), rx + rw - Math.min(Render.width(status), rw - 40), py + 12,
+                    rp.isError() ? 0xFFFF7A90 : rp.isPlaying() ? 0xFF8FE3BE : Theme.SUBTEXT, false);
+            radio.draw(rx, py + 26, rw, ph - 36, mx, my);
+        } else if (serversTab) {
             int rx = px + leftW + 12;
             int rw = pw - leftW - 24;
             Render.text("Servers", rx, py + 12, Theme.TEXT, false);
@@ -177,23 +196,37 @@ public final class FriendsScreen extends UiScreen {
 
     private String[] tabLabels() {
         int req = social().getIncoming().size();
-        return new String[]{"All", req > 0 ? "Requests " + req : "Requests", "Servers"};
+        return new String[]{"All", req > 0 ? "Requests " + req : "Requests", "Servers", "Radio"};
+    }
+
+    private int currentTab() {
+        return radioTab ? 3 : serversTab ? 2 : requestsTab ? 1 : 0;
+    }
+
+    private void setTab(int tab) {
+        requestsTab = tab == 1;
+        serversTab = tab == 2;
+        radioTab = tab == 3;
+        if (!radioTab) {
+            radio.stopTyping();
+        }
     }
 
     /** {x, width} of each tab, sized to its label. */
     private int[] tabs(int x, int w) {
         String[] labels = tabLabels();
+        int n = labels.length;
         int total = 0;
-        int[] tw = new int[3];
-        for (int i = 0; i < 3; i++) {
+        int[] tw = new int[n];
+        for (int i = 0; i < n; i++) {
             tw[i] = Render.width(labels[i]);
             total += tw[i];
         }
-        int extra = Math.max(0, (w - total) / 3);
-        int[] out = new int[6];
+        int extra = Math.max(0, (w - total) / n);
+        int[] out = new int[n * 2];
         int cx = x;
-        for (int i = 0; i < 3; i++) {
-            int segW = i == 2 ? x + w - cx : tw[i] + extra;
+        for (int i = 0; i < n; i++) {
+            int segW = i == n - 1 ? x + w - cx : tw[i] + extra;
             out[i * 2] = cx;
             out[i * 2 + 1] = segW;
             cx += segW;
@@ -208,25 +241,26 @@ public final class FriendsScreen extends UiScreen {
         int w = leftW - 20;
 
         Render.text("Friends", x, y, Theme.TEXT, false);
-        int online = 0;
-        for (SocialManager.Friend f : s.getFriends()) {
-            if (f.playing) {
-                online++;
-            }
+        // Top right: everyone in game on Astra (the list below is only your friends).
+        int total = s.getAstraOnline();
+        if (total >= 0) {
+            String count = total + " on Astra";
+            int cw = Render.width(count);
+            Render.text(count, x + w - cw, y, Theme.SUBTEXT, false);
+            Render.round(x + w - cw - 7, y + 2, 4, 4, 2, 0xFF3DDC97);
         }
-        String count = online + " online";
-        Render.text(count, x + w - Render.width(count), y, Theme.SUBTEXT, false);
         y += 14;
 
-        // Segmented tabs: All | Requests | Servers.
+        // Segmented tabs: All | Requests | Servers | Radio.
         int[] seg = tabs(x, w);
-        int tab = serversTab ? 2 : requestsTab ? 1 : 0;
+        int tab = currentTab();
         Render.round(x, y, w, 14, 7, 0x40000000);
         Render.round(seg[tab * 2], y, seg[tab * 2 + 1], 14, 7, Colors.withAlpha(Theme.accent(), 0xC0));
         String[] labels = tabLabels();
         int req = s.getIncoming().size();
-        for (int i = 0; i < 3; i++) {
-            int color = i == 1 && req > 0 && tab != 1 ? 0xFFFFD166 : Theme.TEXT;
+        for (int i = 0; i < labels.length; i++) {
+            int color = i == 1 && req > 0 && tab != 1 ? 0xFFFFD166
+                    : i == 3 && tab != 3 && dev.astra.client.features.RadioPlayer.get().isPlaying() ? 0xFF8FE3BE : Theme.TEXT;
             Render.textCentered(labels[i], seg[i * 2] + seg[i * 2 + 1] / 2f, y + 3, color, false);
         }
         y += 20;
@@ -243,7 +277,7 @@ public final class FriendsScreen extends UiScreen {
         for (SocialManager.Friend f : friends) {
             if (ry + rowH > listTop - rowH && ry < listBottom) {
                 boolean hover = Render.inside(mx, my, x, ry, w, rowH - 2) && my >= listTop && my < listBottom;
-                boolean sel = !requestsTab && !serversTab && f.uuid.equals(selected);
+                boolean sel = currentTab() == 0 && f.uuid.equals(selected);
                 if (sel) {
                     Render.round(x, ry, w, rowH - 2, 5, Colors.withAlpha(Theme.accent(), 0x55));
                     Render.rect(x, ry + 5, 2, rowH - 12, Theme.accent());
@@ -446,11 +480,22 @@ public final class FriendsScreen extends UiScreen {
         int tabY = py + 24;
         if (Render.inside(mx, my, x, tabY, w, 14)) {
             int[] seg = tabs(x, w);
-            requestsTab = mx >= seg[2] && mx < seg[4];
-            serversTab = mx >= seg[4];
-            social().setReading(requestsTab || serversTab ? null : selected);
+            int clicked = 0;
+            for (int i = 0; i * 2 < seg.length; i++) {
+                if (mx >= seg[i * 2]) {
+                    clicked = i;
+                }
+            }
+            setTab(clicked);
+            social().setReading(clicked == 0 ? selected : null);
             focus = FIELD_NONE;
             return;
+        }
+        if (radioTab) {
+            if (radio.click(mx, my)) {
+                focus = FIELD_NONE;
+                return;
+            }
         }
         if (serversTab) {
             if (mx >= px + leftW) {
@@ -468,8 +513,7 @@ public final class FriendsScreen extends UiScreen {
             int index = (int) ((my - listTop + listScroll) / 26);
             List<SocialManager.Friend> friends = s.getFriends();
             if (index >= 0 && index < friends.size()) {
-                requestsTab = false;
-                serversTab = false;
+                setTab(0);
                 select(friends.get(index).uuid);
             }
             return;
@@ -563,9 +607,16 @@ public final class FriendsScreen extends UiScreen {
     }
 
     @Override
+    protected void mouseReleased(int mx, int my, int button) {
+        radio.released();
+    }
+
+    @Override
     protected void mouseScrolled(int mx, int my, int direction) {
         if (mx < px + leftW) {
             listScroll -= direction * 26;
+        } else if (radioTab) {
+            radio.scroll(mx, my, direction);
         } else if (serversTab) {
             servers.scroll(direction);
         } else {
@@ -585,6 +636,9 @@ public final class FriendsScreen extends UiScreen {
     @Override
     public void charTyped(char c, int keyCode) {
         if (serversTab && focus == FIELD_NONE && servers.charTyped(c, keyCode)) {
+            return;
+        }
+        if (radioTab && focus == FIELD_NONE && radio.charTyped(c, keyCode)) {
             return;
         }
         if (focus == FIELD_NONE || keyCode == Keyboard.KEY_TAB || keyCode == Keyboard.KEY_ESCAPE) {
@@ -641,7 +695,7 @@ public final class FriendsScreen extends UiScreen {
     // ------------------------------------------------------------------ helpers
 
     /** A round "head" with the player's initial, in a colour picked from their name, and a status dot. */
-    static void avatar(String name, int x, int y, int size, int status) {
+    public static void avatar(String name, int x, int y, int size, int status) {
         float hue = ((name == null ? 0 : name.toLowerCase().hashCode()) & 0xFFFF) / 65535f;
         int bg = 0xFF000000 | (java.awt.Color.HSBtoRGB(hue, 0.45f, 0.62f) & 0xFFFFFF);
         Render.round(x, y, size, size, size / 2, bg);

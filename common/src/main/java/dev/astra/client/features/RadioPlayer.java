@@ -1,10 +1,5 @@
 package dev.astra.client.features;
 
-import javazoom.jl.decoder.Bitstream;
-import javazoom.jl.decoder.Decoder;
-import javazoom.jl.decoder.Header;
-import javazoom.jl.decoder.SampleBuffer;
-
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.SourceDataLine;
@@ -172,30 +167,27 @@ public final class RadioPlayer {
             if (metaInt > 0) {
                 in = new IcyStream(raw, metaInt);
             }
-            Bitstream bits = new Bitstream(new BufferedInputStream(in, 32 * 1024));
-            Decoder decoder = new Decoder();
+            Mp3Decoder decoder;
+            try {
+                decoder = new Mp3Decoder(new BufferedInputStream(in, 32 * 1024));
+            } catch (LinkageError e) {
+                throw new IOException("The radio's MP3 decoder is missing. Rebuild Astra with Start Astra.bat.");
+            }
             byte[] pcm = new byte[0];
             int frames = 0;
             while (current(gen)) {
-                Header h = bits.readFrame();
-                if (h == null) {
+                if (!decoder.next()) {
                     return; // stream ended
                 }
-                SampleBuffer out;
-                try {
-                    out = (SampleBuffer) decoder.decodeFrame(h, bits);
-                } finally {
-                    bits.closeFrame();
-                }
                 if (line == null) {
-                    AudioFormat format = new AudioFormat(decoder.getOutputFrequency(), 16, decoder.getOutputChannels(), true, false);
+                    AudioFormat format = new AudioFormat(decoder.sampleRate(), 16, decoder.channels(), true, false);
                     line = AudioSystem.getSourceDataLine(format);
                     // About half a second of buffer: smooth, but stop and volume still feel instant.
                     line.open(format, (int) (format.getFrameRate() * format.getFrameSize() / 2));
                     line.start();
                 }
-                short[] samples = out.getBuffer();
-                int n = out.getBufferLength();
+                short[] samples = decoder.samples();
+                int n = decoder.length();
                 if (pcm.length < n * 2) {
                     pcm = new byte[n * 2];
                 }

@@ -51,6 +51,24 @@ class Store {
     const tmp = this.file + '.tmp';
     fs.writeFileSync(tmp, JSON.stringify(this.data, null, 1));
     fs.renameSync(tmp, this.file);
+    this.backup();
+  }
+
+  /** Keeps one copy of the database per day in data/backups (the last 14 days). */
+  backup() {
+    const day = new Date().toISOString().slice(0, 10);
+    if (this.lastBackup === day) return;
+    this.lastBackup = day;
+    try {
+      const dir = path.join(path.dirname(this.file), 'backups');
+      fs.mkdirSync(dir, { recursive: true });
+      const target = path.join(dir, `db-${day}.json`);
+      if (!fs.existsSync(target)) fs.copyFileSync(this.file, target);
+      const old = fs.readdirSync(dir).filter((f) => /^db-\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort();
+      for (const f of old.slice(0, Math.max(0, old.length - 14))) fs.rmSync(path.join(dir, f), { force: true });
+    } catch (e) {
+      console.warn('[astra] Backup failed:', e.message);
+    }
   }
 }
 

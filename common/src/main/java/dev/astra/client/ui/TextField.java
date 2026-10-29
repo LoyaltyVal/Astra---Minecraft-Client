@@ -2,7 +2,7 @@ package dev.astra.client.ui;
 
 import dev.astra.client.util.Colors;
 import dev.astra.client.util.Render;
-import org.lwjgl.input.Keyboard;
+import dev.astra.client.input.Keyboard;
 
 /** A one-line text box for Astra's screens. Characters come in through UiScreen#charTyped. */
 public final class TextField {

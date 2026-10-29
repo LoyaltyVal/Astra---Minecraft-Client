@@ -6,7 +6,7 @@ import dev.astra.client.module.Module;
 import dev.astra.client.module.setting.BooleanSetting;
 import dev.astra.client.module.setting.KeySetting;
 import dev.astra.client.social.EmoteWheelScreen;
-import org.lwjgl.input.Keyboard;
+import dev.astra.client.input.Keyboard;
 
 /**
  * Emotes: hold the wheel key (B), point at an emote and let go. Everyone using Astra sees it.

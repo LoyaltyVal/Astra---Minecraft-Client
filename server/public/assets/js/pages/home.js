@@ -92,7 +92,8 @@ class HomePage {
       const s = await api.stats();
       for (const [k, v] of Object.entries(s)) {
         const b = document.querySelector(`[data-stat="${k}"]`);
-        if (b) b.textContent = Number(v).toLocaleString();
+        // "Join the players" reads better than "Join 0 players" or "Join 1 players".
+        if (b && Number(v) >= 2) b.textContent = Number(v).toLocaleString();
       }
     } catch {
       // Leave the placeholder text; the page works without live numbers.

@@ -30,7 +30,7 @@ public final class AstraApiClient {
     private static final Charset UTF8 = Charset.forName("UTF-8");
 
     private final String base;
-    private final String token;
+    private volatile String token;
 
     public AstraApiClient(String base, String token) {
         this.base = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
@@ -40,6 +40,11 @@ public final class AstraApiClient {
     /** HTTPS sockets that also trust current root certificates (old Java 8 builds lack them). */
     public static javax.net.ssl.SSLSocketFactory trustedSockets() {
         return AstraTrust.socketFactory();
+    }
+
+    /** After an in-game account switch: the new account's Astra session (null = signed out). */
+    public void setToken(String newToken) {
+        token = newToken == null || newToken.isEmpty() ? null : newToken;
     }
 
     public boolean hasToken() {

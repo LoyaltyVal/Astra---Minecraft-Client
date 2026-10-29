@@ -33,6 +33,8 @@ public final class SocialManager {
         public final int rankColor;
         public final String rankName;
         public final boolean online;
+        /** Their Astra game is open (in a world or in the menus). */
+        public final boolean inClient;
         /** In game right now. */
         public final boolean playing;
         /** Server address, "singleplayer", or null (menus or hidden). */
@@ -46,6 +48,7 @@ public final class SocialManager {
             rankName = rank == null ? null : str(rank, "name");
             rankColor = rank == null ? 0xFFFFFFFF : color(str(rank, "color"));
             online = o.has("online") && o.get("online").getAsBoolean();
+            inClient = o.has("inClient") && o.get("inClient").getAsBoolean();
             JsonObject p = o.has("playing") && o.get("playing").isJsonObject() ? o.getAsJsonObject("playing") : null;
             playing = p != null;
             server = p == null ? null : str(p, "server");
@@ -60,7 +63,7 @@ public final class SocialManager {
                 }
                 return "singleplayer".equals(server) ? "Playing singleplayer" : "On " + server;
             }
-            return online ? "Online" : "Offline";
+            return inClient ? "In the menus" : online ? "Online" : "Offline";
         }
 
         /** True when you can join them (they're on a multiplayer server they don't hide). */
@@ -112,6 +115,8 @@ public final class SocialManager {
     private volatile List<Friend> outgoing = Collections.emptyList();
     private volatile String error;
     private volatile boolean loaded;
+    /** How many players are in game on Astra (everyone, not just friends); -1 until known. */
+    private volatile int astraOnline = -1;
     /** Conversations keyed by the other player's uuid, oldest message first. */
     private final Map<String, List<Message>> chats = new LinkedHashMap<String, List<Message>>();
     private final Map<String, Integer> unread = new LinkedHashMap<String, Integer>();
@@ -162,6 +167,28 @@ public final class SocialManager {
                 }
             });
         }
+    }
+
+    /** After an in-game account switch: drop everything from the old account and start over. */
+    public synchronized void reset() {
+        if (socket != null) {
+            socket.stop();
+            socket = null;
+        }
+        friends = Collections.emptyList();
+        incoming = Collections.emptyList();
+        outgoing = Collections.emptyList();
+        synchronized (chats) {
+            chats.clear();
+            unread.clear();
+        }
+        knownIncoming.clear();
+        knownPlaying.clear();
+        firstFriendsLoad = true;
+        lastMessageId = -1;
+        loaded = false;
+        error = null;
+        ticks = 0;
     }
 
     /** True while the WebSocket to the Astra server is connected. */
@@ -258,6 +285,9 @@ public final class SocialManager {
             List<Friend> f = list(o.getAsJsonArray("friends"));
             List<Friend> in = list(o.getAsJsonArray("incoming"));
             List<Friend> out = list(o.getAsJsonArray("outgoing"));
+            if (o.has("online")) {
+                astraOnline = o.get("online").getAsInt();
+            }
             for (Friend x : f) {
                 names.put(x.uuid, x.name);
             }
@@ -426,6 +456,11 @@ public final class SocialManager {
     }
 
     // ------------------------------------------------------------------ reading
+
+    /** Everyone in game on Astra right now, or -1 before the first answer from the server. */
+    public int getAstraOnline() {
+        return astraOnline;
+    }
 
     public List<Friend> getFriends() {
         return friends;

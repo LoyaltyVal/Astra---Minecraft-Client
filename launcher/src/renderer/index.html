@@ -57,7 +57,7 @@
       <section class="view active" id="view-home">
         <div class="home-grid">
           <div class="hero">
-            <p class="eyebrow">PvP client for Minecraft 1.8.9 &amp; 1.7.10</p>
+            <p class="eyebrow" id="hero-versions">PvP client for Minecraft</p>
             <h1>Astra Client</h1>
             <p class="lede">29 mods, a drag-and-drop HUD editor and your own capes and wings.
               Press <kbd>Right Shift</kbd> in game.</p>
@@ -125,7 +125,7 @@
       <section class="view" id="view-friends">
         <div class="view-head">
           <div>
-            <h2>Friends</h2>
+            <h2>Friends <span class="online-pill" id="friends-online" hidden></span></h2>
             <p class="sub">The same friends you have in game (Shift + Tab) and on the website.</p>
           </div>
           <div class="actions">
@@ -218,7 +218,7 @@
           <div class="setting">
             <div>
               <label for="java-path">Java path</label>
-              <p>Leave empty and Astra downloads Mojang's Java 8 automatically.</p>
+              <p>Leave empty and Astra downloads the Java each version needs. A path here is only used for versions that run on Java 8 (1.7.10 to 1.16.5).</p>
             </div>
             <input type="text" id="java-path" placeholder="Automatic (recommended)" spellcheck="false">
           </div>

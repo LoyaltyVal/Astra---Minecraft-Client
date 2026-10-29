@@ -3,7 +3,9 @@
   "minVersion": "0.8",
   "package": "dev.astra.client.mixin",
   "compatibilityLevel": "JAVA_8",
-  "client": [],
+  "client": [
+    "EquipmentSlotFixMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }

@@ -1,6 +1,6 @@
 package dev.astra.client.util;
 
-import org.lwjgl.input.Mouse;
+import dev.astra.client.input.Mouse;
 
 import java.util.ArrayDeque;
 import java.util.Deque;

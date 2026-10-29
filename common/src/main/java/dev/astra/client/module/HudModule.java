@@ -1,8 +1,8 @@
 package dev.astra.client.module;
 
+import dev.astra.client.Astra;
 import dev.astra.client.module.setting.BooleanSetting;
 import dev.astra.client.module.setting.NumberSetting;
-import org.lwjgl.opengl.GL11;
 
 /**
  * A module drawn on the HUD that can be dragged and resized in the HUD editor.
@@ -62,11 +62,11 @@ public abstract class HudModule extends Module {
 
     public final void draw(boolean editor) {
         float s = getScale();
-        GL11.glPushMatrix();
-        GL11.glTranslatef(x, y, 0f);
-        GL11.glScalef(s, s, 1f);
+        Astra.platform().pushMatrix();
+        Astra.platform().translate(x, y, 0f);
+        Astra.platform().scale(s, s, 1f);
         render(editor);
-        GL11.glPopMatrix();
+        Astra.platform().popMatrix();
     }
 
     /** Draws the module centred in a box (used by the mod menu cards), shrunk to fit. */
@@ -77,11 +77,11 @@ public abstract class HudModule extends Module {
             return;
         }
         float s = Math.min(1.5f, Math.min(maxWidth / w, maxHeight / h));
-        GL11.glPushMatrix();
-        GL11.glTranslatef(centerX - w * s / 2f, centerY - h * s / 2f, 0f);
-        GL11.glScalef(s, s, 1f);
+        Astra.platform().pushMatrix();
+        Astra.platform().translate(centerX - w * s / 2f, centerY - h * s / 2f, 0f);
+        Astra.platform().scale(s, s, 1f);
         render(true);
-        GL11.glPopMatrix();
+        Astra.platform().popMatrix();
     }
 
     /**

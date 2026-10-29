@@ -4,11 +4,16 @@ import dev.astra.client.module.Category;
 import dev.astra.client.module.TextHudModule;
 import dev.astra.client.module.setting.BooleanSetting;
 import dev.astra.client.module.setting.KeySetting;
-import org.lwjgl.input.Keyboard;
+import dev.astra.client.input.Keyboard;
 
 /**
  * Press your sprint key once to keep sprinting; press again to stop. Uses the Sprint key from
  * Minecraft's own Controls, so there's nothing to set up twice.
+ *
+ * It works exactly like holding the sprint key down (each version's ToggleSprintMixin makes the
+ * game read the key as held), so vanilla decides when you may sprint: never while blocking,
+ * eating, drawing a bow, blinded, starving or walking into a wall. Forcing sprint on in those
+ * cases is what anticheats see as cheating, and they answer with a lag back.
  */
 public final class ToggleSprintModule extends TextHudModule {
 
@@ -17,6 +22,13 @@ public final class ToggleSprintModule extends TextHudModule {
     private final BooleanSetting showText;
     private boolean toggled = true;
     private boolean keyWasDown;
+
+    /** Read by ToggleSprintMixin every tick: true = treat the sprint key as held. */
+    private static volatile boolean holding;
+
+    public static boolean isHoldingSprint() {
+        return holding;
+    }
 
     public ToggleSprintModule() {
         super("Toggle Sprint", "Sprint without holding a key.", Category.MECHANIC, true, 82, 78);
@@ -37,9 +49,12 @@ public final class ToggleSprintModule extends TextHudModule {
         }
         keyWasDown = down;
 
-        if (toggled) {
-            mc().sprintIfPossible();
-        }
+        holding = toggled;
+    }
+
+    @Override
+    protected void onDisable() {
+        holding = false;
     }
 
     private boolean keyDown() {
@@ -50,7 +65,7 @@ public final class ToggleSprintModule extends TextHudModule {
         if (code == 0) {
             return false;
         }
-        return code < 0 ? org.lwjgl.input.Mouse.isButtonDown(code + 100) : Keyboard.isKeyDown(code);
+        return code < 0 ? dev.astra.client.input.Mouse.isButtonDown(code + 100) : Keyboard.isKeyDown(code);
     }
 
     @Override

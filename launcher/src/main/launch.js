@@ -1,17 +1,41 @@
 const fs = require('fs');
+const { Bridge } = require('./bridge');
 const { Client } = require('minecraft-launcher-core');
 const auth = require('./auth');
 const store = require('./store');
 const paths = require('./paths');
 const { getVersion } = require('./config');
-const { ensureJava } = require('./java');
+const { ensureJava, javaComponentFor } = require('./java');
 const { ensureLoader } = require('./fabric');
-const { installMod } = require('./mods');
+const { installMod, ensureFabricApi } = require('./mods');
 const astraServer = require('./astraServer');
 const shared = require('./shared');
 const { DiscordPresence } = require('./discord');
 
 let running = null;
+
+/**
+ * Garbage collector settings tuned for short pauses (the widely used "Aikar" G1 flags; they work
+ * on Java 8 and every newer Java). A long GC pause freezes the game; when it resumes, the
+ * movement it owes the server arrives in one burst, and servers answer that with a lag back.
+ */
+const GC_ARGS = [
+  '-XX:+UseG1GC',
+  '-XX:+ParallelRefProcEnabled',
+  '-XX:MaxGCPauseMillis=40',
+  '-XX:+UnlockExperimentalVMOptions',
+  '-XX:+DisableExplicitGC',
+  '-XX:G1NewSizePercent=30',
+  '-XX:G1MaxNewSizePercent=40',
+  '-XX:G1HeapRegionSize=8M',
+  '-XX:G1ReservePercent=20',
+  '-XX:G1MixedGCCountTarget=4',
+  '-XX:InitiatingHeapOccupancyPercent=15',
+  '-XX:G1MixedGCLiveThresholdPercent=90',
+  '-XX:SurvivorRatio=32',
+  '-XX:MaxTenuringThreshold=1',
+  '-XX:+PerfDisableSharedMem'
+];
 
 function isRunning() {
   return running !== null;
@@ -34,23 +58,38 @@ async function launchGame(versionId, ui) {
   ui.state('preparing');
 
   ui.progress({ label: 'Signing in', current: 0, total: 1 });
-  const authorization = await auth.getLaunchAuth();
+  // A Minecraft token with a few hours left, so joining servers keeps working through a long session.
+  const authorization = await auth.getLaunchAuth({ minValidMs: 3 * 60 * 60 * 1000 });
 
-  const javaPath = settings.javaPath || (await ensureJava(version.javaComponent, ui.progress));
-  if (settings.javaPath && !fs.existsSync(settings.javaPath)) {
-    throw new Error(`The Java path in Settings doesn't exist: ${settings.javaPath}`);
+  // Mojang says which Java each version needs (8 for 1.7-1.16, 17 for 1.18, 21 for 1.20.5+, ...).
+  // The Java path in Settings is a Java 8 override, so it's only used for versions that run on Java 8.
+  const component = await javaComponentFor(version.id);
+  const customJava = component === 'jre-legacy' ? settings.javaPath : '';
+  if (customJava && !fs.existsSync(customJava)) {
+    throw new Error(`The Java path in Settings doesn't exist: ${customJava}`);
   }
+  const javaPath = customJava || (await ensureJava(component, ui.progress));
 
   const custom = await ensureLoader(version.id, ui.progress);
   installMod(version.id, ui.log);
+  if (version.fabricApi) await ensureFabricApi(version.id, ui.progress, ui.log);
 
   // Cosmetics server + your Astra session for the game. The token is kept out of the logs.
   ui.progress({ label: 'Connecting to Astra', current: 0, total: 1 });
   const astraArgs = await astraServer.gameArgs(ui.log);
+  // The in-game account switcher talks to the launcher through this (see bridge.js).
+  const bridge = new Bridge({ onAccountChanged: (a) => ui.accountChanged && ui.accountChanged(a), log: ui.log });
+  let bridgeArgs = [];
+  try {
+    bridgeArgs = await bridge.start();
+  } catch (e) {
+    ui.log(`[Astra] The in-game account switcher is unavailable this time (${e.message}).`);
+  }
   // Keep both the Astra token and the Minecraft access token out of the logs.
   const secrets = [
     (astraArgs.find((a) => a.startsWith('-Dastra.token=')) || '').slice('-Dastra.token='.length),
-    authorization && authorization.access_token
+    authorization && authorization.access_token,
+    (bridgeArgs.find((a) => a.startsWith('-Dastra.bridgeToken=')) || '').slice('-Dastra.bridgeToken='.length)
   ].filter((s) => s && s.length > 8);
   const log = (line) => {
     let text = String(line);
@@ -82,6 +121,7 @@ async function launchGame(versionId, ui) {
   });
   client.on('close', (code) => {
     running = null;
+    bridge.stop();
     stopDiscord();
     if (share) shared.save(gameDirectory, ui.log);
     ui.state('closed', { code });
@@ -92,7 +132,9 @@ async function launchGame(versionId, ui) {
     root: paths.root(),
     authorization,
     version: { number: version.id, type: 'release', custom },
-    memory: { max: `${settings.memoryGb}G`, min: '1G' },
+    // Same min and max, so the heap never has to grow mid-fight (growing it means a full pause).
+    // Only when the PC has the RAM to spare; otherwise Java would refuse to start.
+    memory: { max: `${settings.memoryGb}G`, min: settings.memoryGb <= (require('os').totalmem() / 1024 ** 3) * 0.6 ? `${settings.memoryGb}G` : '1G' },
     javaPath,
     overrides: {
       gameDirectory,
@@ -100,14 +142,13 @@ async function launchGame(versionId, ui) {
     },
     customArgs: [
       ...astraArgs,
-      '-XX:+UseG1GC',
-      '-XX:+UnlockExperimentalVMOptions',
-      '-XX:G1NewSizePercent=20',
-      '-XX:MaxGCPauseMillis=50'
+      ...bridgeArgs,
+      ...GC_ARGS
     ]
   });
 
   if (!proc) {
+    bridge.stop();
     throw new Error('Minecraft failed to start. Open the Logs tab for details.');
   }
   running = proc;

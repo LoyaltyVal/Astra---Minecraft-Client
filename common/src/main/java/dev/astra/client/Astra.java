@@ -16,8 +16,8 @@ import dev.astra.client.util.ClickCounter;
 import dev.astra.client.util.FrameCounter;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
-import org.lwjgl.input.Keyboard;
-import org.lwjgl.opengl.Display;
+import dev.astra.client.input.Keyboard;
+import dev.astra.client.input.Window;
 
 import java.io.File;
 import java.util.HashSet;
@@ -31,7 +31,7 @@ import java.util.Set;
 public final class Astra implements ClientModInitializer {
 
     public static final String NAME = "Astra";
-    public static final String VERSION = "0.3.0";
+    public static final String VERSION = "1.0.0";
     public static final int MENU_KEY = Keyboard.KEY_RSHIFT;
 
     private static Astra instance;
@@ -96,7 +96,7 @@ public final class Astra implements ClientModInitializer {
         if (!titleSet) {
             titleSet = true;
             try {
-                org.lwjgl.opengl.Display.setTitle(brand(platform.minecraftVersion()));
+                dev.astra.client.input.Window.setTitle(brand(platform.minecraftVersion()));
             } catch (Throwable ignored) {
                 // no window yet
             }
@@ -126,6 +126,7 @@ public final class Astra implements ClientModInitializer {
 
         cosmetics.tick();
         social.tick();
+        dev.astra.client.features.Accounts.get().tick();
         trackServer();
         for (Module module : modules.getModules()) {
             if (module.isEnabled()) {
@@ -275,8 +276,8 @@ public final class Astra implements ClientModInitializer {
 
     /** {scaledWidth, scaledHeight, scaleFactor}, computed exactly like vanilla's ScaledResolution. */
     public int[] getScaledResolution() {
-        int width = Display.getWidth();
-        int height = Display.getHeight();
+        int width = Window.getWidth();
+        int height = Window.getHeight();
         int guiScale = platform.getGuiScale();
         if (guiScale == 0) {
             guiScale = 1000;

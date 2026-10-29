@@ -2,8 +2,8 @@ package dev.astra.client.ui;
 
 import dev.astra.client.Astra;
 import dev.astra.client.platform.Platform;
-import org.lwjgl.input.Keyboard;
-import org.lwjgl.input.Mouse;
+import dev.astra.client.input.Keyboard;
+import dev.astra.client.input.Mouse;
 
 /**
  * Base class for Astra's screens. The version-specific wrapper screen only forwards

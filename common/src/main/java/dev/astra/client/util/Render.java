@@ -2,8 +2,6 @@ package dev.astra.client.util;
 
 import dev.astra.client.Astra;
 import dev.astra.client.platform.Platform;
-import org.lwjgl.opengl.Display;
-import org.lwjgl.opengl.GL11;
 
 /** Small 2D drawing helpers on top of the platform's fill and text calls. */
 public final class Render {
@@ -48,20 +46,7 @@ public final class Render {
     /** Draws a textured quad from a platform texture handle; UVs are 0..1. */
     public static void texture(Object handle, float x, float y, float w, float h,
                                float u0, float v0, float u1, float v1) {
-        Platform p = p();
-        p.bindTexture(handle);
-        p.color(1f, 1f, 1f, 1f);
-        p.blend(true);
-        GL11.glBegin(GL11.GL_QUADS);
-        GL11.glTexCoord2f(u0, v0);
-        GL11.glVertex2f(x, y);
-        GL11.glTexCoord2f(u0, v1);
-        GL11.glVertex2f(x, y + h);
-        GL11.glTexCoord2f(u1, v1);
-        GL11.glVertex2f(x + w, y + h);
-        GL11.glTexCoord2f(u1, v0);
-        GL11.glVertex2f(x + w, y);
-        GL11.glEnd();
+        p().drawTexture(handle, x, y, w, h, u0, v0, u1, v1);
     }
 
     public static void outline(int x, int y, int w, int h, int argb) {
@@ -81,11 +66,11 @@ public final class Render {
 
     /** Text drawn at a size multiplier, centred on centerX. */
     public static void textCenteredScaled(String s, float centerX, float y, float scale, int argb, boolean shadow) {
-        GL11.glPushMatrix();
-        GL11.glTranslatef(centerX, y, 0f);
-        GL11.glScalef(scale, scale, 1f);
+        Astra.platform().pushMatrix();
+        Astra.platform().translate(centerX, y, 0f);
+        Astra.platform().scale(scale, scale, 1f);
         p().drawText(s, -width(s) / 2f, 0, argb, shadow);
-        GL11.glPopMatrix();
+        Astra.platform().popMatrix();
     }
 
     public static int width(String s) {
@@ -111,14 +96,11 @@ public final class Render {
 
     /** Clips drawing to a rectangle in scaled GUI coordinates. Always pair with {@link #endScissor()}. */
     public static void scissor(int x, int y, int w, int h) {
-        int factor = Astra.get().getScaledResolution()[2];
-        GL11.glEnable(GL11.GL_SCISSOR_TEST);
-        GL11.glScissor(x * factor, Display.getHeight() - (y + h) * factor,
-                Math.max(0, w * factor), Math.max(0, h * factor));
+        p().scissor(x, y, w, h);
     }
 
     public static void endScissor() {
-        GL11.glDisable(GL11.GL_SCISSOR_TEST);
+        p().endScissor();
     }
 
     public static boolean inside(int mx, int my, int x, int y, int w, int h) {

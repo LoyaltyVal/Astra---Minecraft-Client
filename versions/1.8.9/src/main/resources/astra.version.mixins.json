@@ -5,7 +5,9 @@
   "compatibilityLevel": "JAVA_8",
   "client": [
     "HeldItemRendererMixin",
-    "ArmorRedTintMixin"
+    "ArmorRedTintMixin",
+    "NpcSpawnFixMixin",
+    "EquipmentSlotFixMixin"
   ],
   "injectors": {
     "defaultRequire": 1

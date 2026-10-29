@@ -13,7 +13,7 @@ import dev.astra.client.social.Notifications;
 import dev.astra.client.util.Colors;
 import dev.astra.client.util.Keys;
 import dev.astra.client.util.Render;
-import org.lwjgl.input.Keyboard;
+import dev.astra.client.input.Keyboard;
 
 import java.util.ArrayList;
 import java.util.Collections;

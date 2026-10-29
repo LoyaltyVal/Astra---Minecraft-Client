@@ -1,49 +1,31 @@
 package dev.astra.client.module.impl.hud;
 
-import dev.astra.client.features.RadioPlayer;
 import dev.astra.client.features.RadioScreen;
+import dev.astra.client.features.RadioPlayer;
 import dev.astra.client.module.TextHudModule;
-import dev.astra.client.module.setting.BooleanSetting;
 import dev.astra.client.module.setting.KeySetting;
-import dev.astra.client.ui.UiScreen;
 import dev.astra.client.util.Keys;
 
 /**
- * The Radio module: internet radio while you play (OPEN on its card, or a hotkey), with the
- * current song on your HUD. Disabling it stops the music.
+ * Now Playing: the radio's current song on your HUD. The radio itself lives in the Friends menu
+ * (Shift + Tab → Radio); this only shows what it's playing, and hiding it never stops the music.
  */
 public final class NowPlayingModule extends TextHudModule {
 
     private final KeySetting key = setting(new KeySetting("Open Radio", Keys.NONE));
-    private final BooleanSetting showSong = setting(new BooleanSetting("Show Song on HUD", true));
     private boolean wasDown;
 
     public NowPlayingModule() {
-        super("Radio", "Internet radio while you play, with the song on your HUD.", true, 4, 196);
+        super("Now Playing", "The radio's song on your HUD. The radio is in Friends (Shift + Tab).", true, 4, 196);
     }
 
     @Override
     public void onTick() {
         boolean down = key.getCode() != Keys.NONE && key.isDown();
         if (down && !wasDown && !mc().isScreenOpen()) {
-            mc().openUi(new RadioScreen());
+            RadioScreen.open();
         }
         wasDown = down;
-    }
-
-    @Override
-    protected void onDisable() {
-        RadioPlayer.get().stop();
-    }
-
-    @Override
-    public UiScreen createScreen() {
-        return new RadioScreen();
-    }
-
-    @Override
-    public BooleanSetting getHudVisibility() {
-        return showSong;
     }
 
     @Override

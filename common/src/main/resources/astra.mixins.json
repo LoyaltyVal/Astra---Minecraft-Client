@@ -21,7 +21,8 @@
     "ResourcePackLoaderMixin",
     "ArmorGlintMixin",
     "PlayerModelEmoteMixin",
-    "CameraAccessor"
+    "CameraAccessor",
+    "ToggleSprintMixin"
   ],
   "injectors": {
     "defaultRequire": 1

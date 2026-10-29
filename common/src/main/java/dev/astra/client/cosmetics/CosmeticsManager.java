@@ -5,7 +5,6 @@ import com.google.gson.JsonObject;
 import dev.astra.client.Astra;
 import dev.astra.client.module.impl.CosmeticsModule;
 import dev.astra.client.platform.Platform;
-import org.lwjgl.opengl.GL11;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
@@ -171,6 +170,26 @@ public final class CosmeticsManager {
         return signedIn;
     }
 
+    /** The game switched Minecraft accounts: forget the old one and load the new one. */
+    public void switchAccount(String astraToken) {
+        if (api == null) {
+            return;
+        }
+        api.setToken(astraToken);
+        if (selfUuid != null) {
+            players.remove(selfUuid);
+            emotes.remove(selfUuid);
+        }
+        selfUuid = null;
+        signedIn = false;
+        owned = Collections.emptyList();
+        reportedPresence = "";
+        status = astraToken == null ? "Couldn't sign this account in to the Astra server." : "Connecting to the Astra server...";
+        if (astraToken != null) {
+            refresh();
+        }
+    }
+
     /** Reloads the catalog and your account in the background. */
     public void refresh() {
         if (api == null) {
@@ -274,8 +293,8 @@ public final class CosmeticsManager {
     }
 
     /**
-     * Tells the Astra server where you are (for the website's Players page): right away when it
-     * changes, and every 30 seconds while in game so you show as online.
+     * Tells the Astra server where you are (for friends and the online count): right away when it
+     * changes, and every 30 seconds while the game is open (menus too) so you count as online.
      */
     private void reportPresence() {
         if (!signedIn || ticks % 20 != 0) {
@@ -288,7 +307,7 @@ public final class CosmeticsManager {
         final String version = server == null ? null : p.minecraftVersion();
         String now = server + "|" + hidden;
         boolean changed = !now.equals(reportedPresence);
-        boolean due = server != null && ticks - lastPresenceTick >= 600;
+        boolean due = ticks - lastPresenceTick >= 600;
         if (!changed && !due) {
             return;
         }
@@ -506,11 +525,21 @@ public final class CosmeticsManager {
             return null;
         }
         if (tex.handle == null) {
+            // Uploading a texture takes a few milliseconds. When several Astra players come into
+            // view at once (the start of a fight), doing them all in one frame causes a hitch, so
+            // at most one is uploaded every 50 ms; the rest show up a moment later.
+            long now = System.nanoTime();
+            if (now - lastUpload < 50_000_000L) {
+                return null;
+            }
+            lastUpload = now;
             String name = "astra_cosmetic_" + id.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_]", "_");
             tex.handle = Astra.platform().createTexture(name, tex.image);
         }
         return tex;
     }
+
+    private long lastUpload = System.nanoTime() - 1_000_000_000L;
 
     public String getError(Type type, String id) {
         return id == null ? null : failed.get(id);
@@ -648,53 +677,30 @@ public final class CosmeticsManager {
         float lift = sneaking ? 6f : 14f + flap * 10f;      // raised above the shoulders
         float tilt = sneaking ? 10f : 18f;                  // tips lean back
 
-        GL11.glPushMatrix();
+        Astra.platform().pushMatrix();
         if (sneaking) {
-            GL11.glRotatef(28.6f, 1f, 0f, 0f); // match the body lean
-            GL11.glTranslatef(0f, 0.05f, 0f);
+            Astra.platform().rotate(28.6f, 1f, 0f, 0f); // match the body lean
+            Astra.platform().translate(0f, 0.05f, 0f);
         }
         // Root between the shoulder blades, just behind the back (and behind the cape).
-        GL11.glTranslatef(0f, 0.22f, 0.16f);
-
-        p.bindTexture(tex.handle);
-        // Smooth filtering: wing art is drawn much smaller than the image, so nearest-pixel
-        // sampling (Minecraft's default) makes jagged, shimmering edges.
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
-        p.color(1f, 1f, 1f, 1f);
-        p.blend(true);
-        p.cull(false);
-        GL11.glEnable(GL11.GL_ALPHA_TEST);
-        GL11.glAlphaFunc(GL11.GL_GREATER, 0.05f);
+        Astra.platform().translate(0f, 0.22f, 0.16f);
 
         for (int side = -1; side <= 1; side += 2) {
-            GL11.glPushMatrix();
-            GL11.glTranslatef(side * 0.06f, 0f, 0f);
-            GL11.glRotatef(-side * spread, 0f, 1f, 0f);   // sweep the tip backwards
-            GL11.glRotatef(-side * lift, 0f, 0f, 1f);     // raise the tip
-            GL11.glRotatef(tilt, 1f, 0f, 0f);             // lean the top back
+            Astra.platform().pushMatrix();
+            Astra.platform().translate(side * 0.06f, 0f, 0f);
+            Astra.platform().rotate(-side * spread, 0f, 1f, 0f);   // sweep the tip backwards
+            Astra.platform().rotate(-side * lift, 0f, 0f, 1f);     // raise the tip
+            Astra.platform().rotate(tilt, 1f, 0f, 0f);             // lean the top back
             float tip = side * wingW;
             // The wing's root sits at the top of the image third; most of it hangs below.
             float top = -wingH * 0.45f;
             float bottom = wingH * 0.55f;
-            GL11.glBegin(GL11.GL_QUADS);
-            GL11.glNormal3f(0f, 0f, 1f);
-            GL11.glTexCoord2f(u0, 0f);
-            GL11.glVertex3f(0f, top, 0f);
-            GL11.glTexCoord2f(u0, 1f);
-            GL11.glVertex3f(0f, bottom, 0f);
-            GL11.glTexCoord2f(u1, 1f);
-            GL11.glVertex3f(tip, bottom, 0f);
-            GL11.glTexCoord2f(u1, 0f);
-            GL11.glVertex3f(tip, top, 0f);
-            GL11.glEnd();
-            GL11.glPopMatrix();
+            // Smoothly filtered (the art is drawn much smaller than the image) and double-sided.
+            p.drawWorldQuad(tex.handle, 0f, top, tip, bottom, u0, 0f, u1, 1f);
+            Astra.platform().popMatrix();
         }
 
-        GL11.glAlphaFunc(GL11.GL_GREATER, 0.1f);
-        p.cull(true);
-        p.blend(false);
-        GL11.glPopMatrix();
+        Astra.platform().popMatrix();
     }
 
     // ------------------------------------------------------------------ helpers

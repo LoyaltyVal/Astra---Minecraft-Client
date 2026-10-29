@@ -153,6 +153,22 @@ public final class HudEditorScreen extends UiScreen {
             Render.textCentered(n, b[0] - 4 + bw / 2f, b[1] - 2, Theme.TEXT, false);
         }
         Render.text("Shift + Tab", b[0] + b[2] - Render.width("Shift + Tab"), b[1] + b[3] + 3, 0x88FFFFFF, true);
+
+        // Account switcher, left of Friends.
+        int[] a = accountsBox();
+        boolean aHover = dragging == null && Render.inside(mx, my, a[0], a[1], a[2], a[3]);
+        Render.round(a[0], a[1], a[2], a[3], 9, aHover ? 0xF0202028 : 0xC0101014);
+        Render.textCentered(accountsLabel(), a[0] + a[2] / 2f, a[1] + 5, Theme.TEXT, true);
+    }
+
+    private String accountsLabel() {
+        return Render.trim(Astra.platform().getSessionName(), 90) + " \u25be";
+    }
+
+    private int[] accountsBox() {
+        int[] f = friendsBox();
+        int w = Panels.pillWidth(accountsLabel()) + 6;
+        return new int[]{f[0] - w - 6, f[1], w, f[3]};
     }
 
     @Override
@@ -160,6 +176,11 @@ public final class HudEditorScreen extends UiScreen {
         int[] fb = friendsBox();
         if (button == 0 && Render.inside(mx, my, fb[0], fb[1], fb[2], fb[3])) {
             open(new dev.astra.client.social.FriendsScreen());
+            return;
+        }
+        int[] ab = accountsBox();
+        if (button == 0 && Render.inside(mx, my, ab[0], ab[1], ab[2], ab[3])) {
+            open(new dev.astra.client.features.AccountsScreen());
             return;
         }
         HudModule m = moduleAt(mx, my);

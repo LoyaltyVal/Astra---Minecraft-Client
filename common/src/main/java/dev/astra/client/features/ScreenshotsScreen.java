@@ -7,7 +7,7 @@ import dev.astra.client.ui.UiScreen;
 import dev.astra.client.util.Colors;
 import dev.astra.client.util.Files;
 import dev.astra.client.util.Render;
-import org.lwjgl.input.Keyboard;
+import dev.astra.client.input.Keyboard;
 
 import java.io.File;
 import java.text.SimpleDateFormat;

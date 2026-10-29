@@ -5,6 +5,10 @@ const { App } = require('./App');
 
 const config = loadConfig();
 
+// A stray error in background work (Discord webhook, a dropped socket) must never take the server down.
+process.on('unhandledRejection', (e) => console.error('[astra] Unhandled error:', e));
+process.on('uncaughtException', (e) => console.error('[astra] Uncaught error:', e));
+
 // devAuth trusts whatever name a client sends, so on a public address anyone could sign in as you.
 if (config.devAuth && !/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(config.publicUrl)) {
   console.error('[astra] Refusing to start: "devAuth" is true but publicUrl is a public address.');

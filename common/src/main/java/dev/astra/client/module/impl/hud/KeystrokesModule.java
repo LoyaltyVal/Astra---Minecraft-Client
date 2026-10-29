@@ -8,7 +8,7 @@ import dev.astra.client.module.setting.KeySetting;
 import dev.astra.client.util.Colors;
 import dev.astra.client.util.Keys;
 import dev.astra.client.util.Render;
-import org.lwjgl.input.Keyboard;
+import dev.astra.client.input.Keyboard;
 
 public final class KeystrokesModule extends HudModule {
 

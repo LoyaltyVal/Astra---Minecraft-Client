@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Players · Astra</title>
-<meta name="description" content="Find Astra players and see which server they're on.">
+<meta name="description" content="How many players are on Astra right now, and which of your friends are in game.">
 <link rel="icon" href="/assets/img/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,15 +18,15 @@
   <div class="wrap">
     <div class="page-head">
       <p class="kicker">Players</p>
-      <h1>Find a player</h1>
-      <p>Everyone playing on Astra right now and the server they're on. Players can hide their server in game (Right Shift → Cosmetics → Options).</p>
+      <h1>Who's online</h1>
+      <p>Your friends with Astra open, and the server they're on. Search any name to open their profile.</p>
     </div>
+    <div class="online-total" aria-live="polite"><span class="dot on"></span><b data-total>–</b> <span data-total-label>players online on Astra</span></div>
     <form class="finder" data-find role="search">
       <input type="search" name="q" placeholder="Search a Minecraft name" aria-label="Minecraft name" maxlength="16" autocomplete="off">
       <button class="btn btn-primary" type="submit">Find</button>
     </form>
-    <div class="servers" data-servers></div>
-    <h2 class="list-title"><span class="dot on"></span> In game now <span class="muted" data-count></span></h2>
+    <h2 class="list-title">Friends online <span class="muted" data-count></span></h2>
     <div class="people" data-online aria-live="polite"><div class="empty" style="grid-column:1/-1">Loading…</div></div>
   </div>
 </main>

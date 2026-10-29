@@ -14,6 +14,10 @@ sourceSets {
     main {
         java.srcDir rootProject.file("common/src/main/java")
         resources.srcDir rootProject.file("common/src/main/resources")
+        // LWJGL 2 versions (1.7.10 - 1.13.2) also share the fixed-function GL / Display code in /legacy.
+        if (project.findProperty("astra_platform") == "legacy") {
+            java.srcDir rootProject.file("legacy/src/main/java")
+        }
     }
 }
 

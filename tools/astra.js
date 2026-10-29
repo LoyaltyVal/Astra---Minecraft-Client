@@ -219,12 +219,28 @@ async function prepareWinCodeSign() {
   await run(sevenZip, ['x', '-bd', '-y', `-o${target}`, archive, '-xr!darwin'], cache, 'Unpacking the Windows packaging tools...');
 }
 
-async function installer() {
+/** The address installers point players at; stops before a long build if it can't work. */
+function installerAddress() {
   const cfg = serverConfig();
   const serverUrl = cfg && cfg.publicUrl ? cfg.publicUrl : 'http://localhost:8787';
-  if (/localhost|127\.0\.0\.1/.test(serverUrl)) {
-    say(`Note: the installer will point players at ${serverUrl}. Set "publicUrl" in server/config.json to your hosted address first if friends will use it.`);
+  if (/\.trycloudflare\.com/i.test(serverUrl)) {
+    // A quick-tunnel address dies the next time hosting restarts; every installer built with it
+    // would point players at a dead server for good.
+    fail([
+      `server/config.json "publicUrl" is a temporary address (${serverUrl}).`,
+      'It changes every time hosting restarts, so installers built with it stop working.',
+      'Set up a permanent address first: run "Set Up DuckDNS.bat" (free) or',
+      '"Set Up Permanent Address.bat" (your own domain), then build the installer again.'
+    ].join('\n'));
   }
+  if (/localhost|127\.0\.0\.1/.test(serverUrl)) {
+    say(`Note: the installer will point players at ${serverUrl}, which only works on this PC. Set up a permanent address (Set Up DuckDNS.bat) before giving it to players.`);
+  }
+  return serverUrl;
+}
+
+async function installer() {
+  const serverUrl = installerAddress();
   fs.writeFileSync(path.join(LAUNCHER, 'build-config.json'), JSON.stringify({ serverUrl }, null, 2) + '\n');
   await prepareWinCodeSign();
   await run('npm', ['run', 'dist'], LAUNCHER, 'Packing the Windows installer...');
@@ -235,7 +251,16 @@ async function installer() {
     .map((f) => ({ f, t: fs.statSync(path.join(dist, f)).mtimeMs })).sort((a, b) => b.t - a.t);
   if (exes.length) {
     fs.mkdirSync(path.join(SERVER, 'downloads'), { recursive: true });
-    fs.copyFileSync(path.join(dist, exes[0].f), path.join(SERVER, 'downloads', 'Astra-Setup.exe'));
+    const target = path.join(SERVER, 'downloads', 'Astra-Setup.exe');
+    fs.copyFileSync(path.join(dist, exes[0].f), target);
+    // What the website shows next to its Download button.
+    const pkg = JSON.parse(fs.readFileSync(path.join(LAUNCHER, 'package.json'), 'utf8'));
+    fs.writeFileSync(path.join(SERVER, 'downloads', 'Astra-Setup.json'), JSON.stringify({
+      version: pkg.version,
+      size: fs.statSync(target).size,
+      builtAt: new Date().toISOString(),
+      versions: fs.readdirSync(path.join(LAUNCHER, 'mods')).filter((v) => /^\d/.test(v))
+    }, null, 2) + '\n');
     say(`The website's Download button now serves ${exes[0].f} (${serverUrl}/download/Astra-Setup.exe).`);
   }
 }
@@ -295,6 +320,37 @@ function banner(lines) {
   logLine(lines.join('\n') + '\n');
 }
 
+let shuttingDown = false;
+
+/**
+ * Runs the Astra server and starts it again if it ever stops on its own (a crash shouldn't take
+ * everyone offline until you notice). Returns a handle whose kill() stops it for good.
+ */
+function superviseServer(publicUrl) {
+  let child = null;
+  let restarts = 0;
+  let stopped = false;
+  const start = () => {
+    const startedAt = Date.now();
+    child = startServerChild(publicUrl);
+    child.on('exit', (code) => {
+      if (stopped || shuttingDown) return;
+      if (Date.now() - startedAt > 60000) restarts = 0; // it had been running fine
+      restarts++;
+      const wait = Math.min(30000, 1000 * 2 ** Math.min(restarts, 5));
+      say(`The Astra server stopped (exit code ${code}). Starting it again in ${Math.round(wait / 1000)}s...`);
+      setTimeout(start, wait);
+    });
+  };
+  start();
+  return {
+    kill() {
+      stopped = true;
+      if (child) child.kill();
+    }
+  };
+}
+
 /** Starts the Astra server as a child process with the public address. */
 function startServerChild(publicUrl) {
   const child = spawn(process.execPath, ['src/index.js'], {
@@ -322,6 +378,7 @@ async function host() {
   const named = cfg.tunnel && cfg.tunnel.name && cfg.tunnel.hostname && fs.existsSync(cfg.tunnel.configFile || '');
   const children = [];
   const stop = () => {
+    shuttingDown = true;
     for (const c of children) {
       try { c.kill(); } catch { /* gone */ }
     }
@@ -356,7 +413,7 @@ async function host() {
     });
   }
 
-  children.push(startServerChild(publicUrl));
+  children.push(superviseServer(publicUrl));
   for (let i = 0; i < 20 && !(await serverRunning(port)); i++) await new Promise((r) => setTimeout(r, 500));
   fs.mkdirSync(path.join(SERVER, 'data'), { recursive: true });
   fs.writeFileSync(path.join(SERVER, 'data', 'online-address.txt'), publicUrl + '\n');
@@ -495,6 +552,7 @@ async function hostDuckDns(cfg) {
 
   const children = [];
   const stop = () => {
+    shuttingDown = true;
     for (const c of children) {
       try { c.kill(); } catch { /* gone */ }
     }
@@ -503,7 +561,7 @@ async function hostDuckDns(cfg) {
   process.on('SIGINT', stop);
   process.on('SIGTERM', stop);
 
-  children.push(startServerChild(publicUrl));
+  children.push(superviseServer(publicUrl));
   for (let i = 0; i < 20 && !(await serverRunning(port)); i++) await new Promise((r) => setTimeout(r, 500));
 
   say('Starting Caddy (HTTPS). The first time it gets a certificate, which takes up to a minute...');
@@ -618,6 +676,7 @@ async function address() {
   } else if (cmd === 'installer') {
     checkTools();
     await setup();
+    installerAddress(); // before the build, so a bad address fails fast
     await build();
     await installer();
   } else if (cmd === 'host') {

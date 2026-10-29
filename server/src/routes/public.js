@@ -22,6 +22,24 @@ const DEFAULT_STATIONS = [
 
 const INSTALLER = path.join(__dirname, '..', '..', 'downloads', 'Astra-Setup.exe');
 
+/** {version, size, versions} written by "Build Installer.bat" next to the installer, or null. */
+function installerInfo() {
+  try {
+    const info = JSON.parse(fs.readFileSync(INSTALLER.replace(/\.exe$/, '.json'), 'utf8'));
+    return {
+      version: /^[\w.+-]{1,32}$/.test(String(info.version)) ? String(info.version) : '',
+      size: Number(info.size) || fs.statSync(INSTALLER).size,
+      versions: Array.isArray(info.versions) ? info.versions.filter((v) => /^\d+(\.\d+){1,2}$/.test(v)) : []
+    };
+  } catch {
+    try {
+      return { version: '', size: fs.statSync(INSTALLER).size, versions: [] };
+    } catch {
+      return null;
+    }
+  }
+}
+
 /** Public API (website, game cosmetics lookup) plus sign-in and the player's own endpoints. */
 function publicRoutes(router, ctx) {
   const { players, cosmetics, auth, config } = ctx;
@@ -32,6 +50,7 @@ function publicRoutes(router, ctx) {
     rarities: RARITIES,
     publicUrl: config.publicUrl,
     downloadUrl: config.downloadUrl || (fs.existsSync(INSTALLER) ? '/download/Astra-Setup.exe' : ''),
+    download: config.downloadUrl ? null : installerInfo(),
     discordInvite: /^https:\/\/(discord\.gg|discord\.com\/invite)\//.test(config.discordInvite || '') ? config.discordInvite : '',
     discordClientId: /^\d{15,25}$/.test(String(config.discordClientId || '')) ? String(config.discordClientId) : ''
   }));
@@ -45,14 +64,24 @@ function publicRoutes(router, ctx) {
     sendJson(res, 200, { stations: list });
   });
 
-  /** Everyone in game right now, with the server they're on (unless they hide it). */
+  /**
+   * Who's online: everyone sees how many players have Astra open; the list itself only holds the
+   * signed-in player's friends (with the server they're on, unless they hide it).
+   */
   router.get('/api/online', (req, res) => {
-    sendJson(res, 200, { players: players.inGame().map((p) => players.publicView(p, cosmetics)) });
+    const viewer = auth.playerFor(req);
+    const online = players.onlineNow();
+    const friends = new Set((viewer && viewer.friends) || []);
+    sendJson(res, 200, {
+      online: online.length,
+      signedIn: Boolean(viewer),
+      players: viewer ? online.filter((p) => friends.has(p.uuid)).map((p) => players.publicView(p, cosmetics)) : []
+    });
   });
 
   router.get('/api/stats', (req, res) => sendJson(res, 200, {
     players: players.count(),
-    online: players.inGame().length,
+    online: players.onlineNow().length,
     cosmetics: cosmetics.all().length,
     staff: players.staff().length
   }));
@@ -161,6 +190,9 @@ function publicRoutes(router, ctx) {
   router.get('/player/:name', page('player.html'));
   // "Build Installer.bat" copies the installer here, so the website's Download button just works.
   router.get('/download/Astra-Setup.exe', (req, res) => {
+    const info = installerInfo();
+    const name = info && info.version ? `Astra-Setup-${info.version}.exe` : 'Astra-Setup.exe';
+    res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
     if (!serveFile(res, path.dirname(INSTALLER), path.basename(INSTALLER), req)) {
       throw new HttpError(404, 'The installer hasn\'t been built yet. Run "Build Installer.bat" on the server PC.');
     }

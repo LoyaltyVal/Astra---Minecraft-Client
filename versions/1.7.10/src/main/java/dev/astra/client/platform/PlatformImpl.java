@@ -39,7 +39,7 @@ import java.util.Map;
  * folder. If a mappings update renames something, run {@code gradlew :versions:1.7.10:genSources}
  * and look up the new name in the decompiled sources.
  */
-public final class PlatformImpl implements dev.astra.client.platform.Platform {
+public final class PlatformImpl extends dev.astra.client.platform.legacy.LegacyPlatform {
 
     private static final Identifier INVENTORY = new Identifier("textures/gui/container/inventory.png");
 
@@ -226,19 +226,6 @@ public final class PlatformImpl implements dev.astra.client.platform.Platform {
     @Override
     public boolean isSprinting() {
         return isInGame() && player().isSprinting();
-    }
-
-    @Override
-    public void sprintIfPossible() {
-        if (!isInGame()) {
-            return;
-        }
-        // Vanilla also cancels sprint when it shouldn't apply (eating, blocking, hitting a wall).
-        boolean movingForward = player().forwardSpeed > 0;
-        boolean fed = player().getHungerManager().getFoodLevel() > 6;
-        if (movingForward && fed && !player().isSneaking()) {
-            player().setSprinting(true);
-        }
     }
 
     @Override
@@ -490,12 +477,30 @@ public final class PlatformImpl implements dev.astra.client.platform.Platform {
     }
 
     @Override
-    public void joinServer(String address) {
+    public void leaveWorld() {
         MinecraftClient mc = mc();
         if (mc.world != null) {
             mc.world.disconnect();
             mc.connect((net.minecraft.client.world.ClientWorld) null);
         }
+    }
+
+    @Override
+    public String getSessionName() {
+        return mc().getSession().getUsername();
+    }
+
+    @Override
+    public void setSession(String name, String uuid, String accessToken) {
+        MinecraftClient mc = mc();
+        ((dev.astra.client.mixin.MinecraftClientAccessor) mc).astra$setSession(
+                new net.minecraft.client.util.Session(name, uuid, accessToken, "msa"));
+    }
+
+    @Override
+    public void joinServer(String address) {
+        MinecraftClient mc = mc();
+        leaveWorld();
         net.minecraft.client.network.ServerInfo info = new net.minecraft.client.network.ServerInfo("Friend", address, false);
         mc.setScreen(new net.minecraft.client.gui.screen.ConnectScreen(new net.minecraft.client.gui.screen.TitleScreen(), mc, info));
     }

@@ -5,7 +5,7 @@ import dev.astra.client.module.Module;
 import dev.astra.client.module.setting.KeySetting;
 import dev.astra.client.module.setting.ModeSetting;
 import dev.astra.client.util.Keys;
-import org.lwjgl.input.Keyboard;
+import dev.astra.client.input.Keyboard;
 
 /**
  * Freelook: hold (or toggle) a key to switch to third person and move the camera around your
