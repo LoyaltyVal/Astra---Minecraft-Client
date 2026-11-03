@@ -181,6 +181,20 @@ public final class FriendsScreen extends UiScreen {
         Render.textCentered("Shift + Tab or Esc to close", width / 2f, py + ph + 4, 0x66FFFFFF, false);
     }
 
+    private static boolean ranked(SocialManager.Friend f) {
+        return f.rankName != null && !"Player".equals(f.rankName);
+    }
+
+    /** A friend's name in their rank colour, followed by their rank star (ranks above Player). */
+    private static void nameWithStar(SocialManager.Friend f, int maxWidth, int x, int y) {
+        boolean star = ranked(f);
+        String name = Render.trim(f.name, star ? maxWidth - 12 : maxWidth);
+        Render.text(name, x, y, f.rankColor, false);
+        if (star) {
+            dev.astra.client.ui.RankIcon.draw(x + Render.width(name) + 3, y - 1, 9, f.rankColor);
+        }
+    }
+
     /** A thin animated colour band along the top edge: the card's signature. */
     private void aurora(int x, int y, int w, float ease) {
         double time = System.currentTimeMillis() / 900.0;
@@ -285,7 +299,7 @@ public final class FriendsScreen extends UiScreen {
                     Render.round(x, ry, w, rowH - 2, 5, 0x18FFFFFF);
                 }
                 avatar(f.name, x + 4, ry + 3, 18, f.playing ? 0xFF3DDC97 : f.online ? 0xFFFFD166 : 0xFF5A5A66);
-                Render.text(Render.trim(f.name, w - 40), x + 27, ry + 3, f.rankColor, false);
+                nameWithStar(f, w - 40, x + 27, ry + 3);
                 Render.text(Render.trim(f.status(), w - 32), x + 27, ry + 13, f.playing ? 0xFF8FE3BE : Theme.SUBTEXT, false);
                 int unread = s.getUnread(f.uuid);
                 if (unread > 0) {
@@ -343,10 +357,7 @@ public final class FriendsScreen extends UiScreen {
         // Header: avatar, name, status, actions.
         int y = py + 10;
         avatar(f.name, x, y, 24, f.playing ? 0xFF3DDC97 : f.online ? 0xFFFFD166 : 0xFF5A5A66);
-        Render.text(f.name, x + 30, y + 2, f.rankColor, false);
-        if (f.rankName != null && !"Player".equals(f.rankName)) {
-            Render.text(f.rankName, x + 34 + Render.width(f.name), y + 2, Colors.withAlpha(f.rankColor, 0x99), false);
-        }
+        nameWithStar(f, w - 130, x + 30, y + 2);
         Render.text(Render.trim(f.status(), w - 120), x + 30, y + 13, f.playing ? 0xFF8FE3BE : Theme.SUBTEXT, false);
 
         int bx = x + w;
@@ -441,7 +452,7 @@ public final class FriendsScreen extends UiScreen {
             }
             Render.round(x, y, w, 24, 5, 0x20FFFFFF);
             avatar(f.name, x + 4, y + 3, 18, 0xFFFFD166);
-            Render.text(Render.trim(f.name, w - 120), x + 27, y + 3, f.rankColor, false);
+            nameWithStar(f, w - 120, x + 27, y + 3);
             Render.text("wants to be friends", x + 27, y + 13, Theme.SUBTEXT, false);
             int dw = Render.width("Decline") + 12;
             int aw = Render.width("Accept") + 12;
@@ -459,7 +470,7 @@ public final class FriendsScreen extends UiScreen {
                 }
                 Render.round(x, y, w, 20, 5, 0x14FFFFFF);
                 avatar(f.name, x + 4, y + 3, 14, 0xFF5A5A66);
-                Render.text(Render.trim(f.name, w - 80), x + 23, y + 6, f.rankColor, false);
+                nameWithStar(f, w - 80, x + 23, y + 6);
                 int cw = Render.width("Cancel") + 12;
                 pill(x + w - cw - 4, y + 2, cw, 16, "Cancel", mx, my, 0x30FFFFFF, 0x50FFFFFF);
                 y += 24;

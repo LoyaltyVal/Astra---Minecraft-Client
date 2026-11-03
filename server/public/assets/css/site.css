@@ -104,6 +104,9 @@ kbd { font: 500 13px/1 var(--font-mono); padding: 3px 7px; border-radius: 5px; b
 
 .rank { display: inline-flex; align-items: center; gap: 6px; font: 600 11px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase;
   padding: 5px 8px; border-radius: 6px; border: 1px solid currentColor; white-space: nowrap; }
+.rank-star { display: inline-flex; align-items: center; gap: 6px; vertical-align: -2px; margin-left: 6px; line-height: 1; }
+.rank-star svg { display: block; image-rendering: pixelated; filter: drop-shadow(0 0 4px color-mix(in srgb, currentColor 45%, transparent)); }
+.rank-star.with-label { margin-left: 0; font: 600 11px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
 .rarity { font: 600 10.5px/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
 .rarity-common { color: var(--common); } .rarity-rare { color: var(--rare); } .rarity-epic { color: var(--epic); } .rarity-legendary { color: var(--legendary); }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); display: inline-block; }
@@ -291,3 +294,4 @@ footer nav a:hover { color: var(--star); }
 .fr-live { display: inline-block; width: 7px; height: 7px; margin-left: 8px; border-radius: 50%; background: var(--line); vertical-align: middle; }
 .fr-live.on { background: var(--mint); box-shadow: 0 0 6px var(--mint); }
 .finder + .list-title { margin-top: 30px; }
+h1 .rank-star, h2 .rank-star { margin-left: 12px; vertical-align: -4px; }

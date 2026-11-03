@@ -286,7 +286,11 @@ input[type="text"] {
 }
 
 /* Astra account rank, shown under your name */
-.account-rank { font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.account-name-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.rank-star { display: inline-flex; vertical-align: -2px; margin-left: 6px; line-height: 0; }
+.account-name-row .rank-star { margin-left: 0; }
+.rank-star[hidden] { display: none; }
+.rank-star svg { display: block; filter: drop-shadow(0 0 3px rgba(255, 255, 255, .15)); }
 .cos-rarity { display: block; margin-top: 2px; font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .cos-rarity.rare { color: #4fc3f7; } .cos-rarity.epic { color: #b388ff; } .cos-rarity.legendary { color: #ffb35c; }
 

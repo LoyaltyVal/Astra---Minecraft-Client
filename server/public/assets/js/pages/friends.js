@@ -1,5 +1,5 @@
 import { api } from '../api.js';
-import { SiteChrome, Toast, avatar, el, timeAgo } from '../ui.js';
+import { SiteChrome, Toast, avatar, el, rankBadge, timeAgo } from '../ui.js';
 
 const status = (f) => {
   if (f.playing) {
@@ -158,7 +158,7 @@ class FriendsPage {
     for (const f of friends) {
       const b = el('button', { class: `fr-item${f.uuid === this.selected ? ' on' : ''}${f.playing ? ' playing' : ''}`, type: 'button' },
         el('span', { class: 'fr-head' }, el('img', { src: avatar(f.uuid, 64), alt: '' }), el('i', { class: `dot${f.playing ? ' on' : ''}` })),
-        el('span', { class: 'fr-who' }, el('b', { style: { color: f.rank.color } }, f.name), el('small', {}, status(f))));
+        el('span', { class: 'fr-who' }, el('b', { style: { color: f.rank.color } }, f.name, rankBadge(f.rank, { size: 13 })), el('small', {}, status(f))));
       b.addEventListener('click', () => {
         this.selected = f.uuid;
         history.replaceState(null, '', `/friends?with=${f.uuid}`);
@@ -206,7 +206,7 @@ class FriendsPage {
     this.chat.replaceChildren(
       el('header', { class: 'fr-top' },
         el('img', { src: avatar(f.uuid, 64), alt: '' }),
-        el('span', {}, el('a', { href: `/player/${encodeURIComponent(f.name)}`, style: { color: f.rank.color } }, f.name), el('small', {}, status(f))),
+        el('span', {}, el('a', { href: `/player/${encodeURIComponent(f.name)}`, style: { color: f.rank.color } }, f.name), rankBadge(f.rank, { size: 15 }), el('small', {}, status(f))),
         el('button', { class: 'btn btn-danger btn-sm', onclick: () => {
           if (confirm(`Remove ${f.name} from your friends?`)) {
             this.selected = null;

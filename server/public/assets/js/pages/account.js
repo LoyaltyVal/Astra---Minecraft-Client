@@ -184,8 +184,7 @@ class AccountPage {
     this.root.replaceChildren(el('div', { class: 'acc' },
       el('aside', { class: 'acc-me' },
         el('img', { src: avatar(p.uuid, 128), alt: '' }),
-        rankBadge(p.rank),
-        el('h2', {}, p.name),
+        el('h2', {}, p.name, rankBadge(p.rank, { size: 22 })),
         el('a', { class: 'btn btn-quiet btn-sm', href: `/player/${encodeURIComponent(p.name)}` }, 'View my profile'),
         el('a', { class: 'btn btn-quiet btn-sm', href: '/friends' }, 'Friends')),
       el('div', { class: 'acc-main' }, bioForm, this.uploadsCard(), privacy, discord)));

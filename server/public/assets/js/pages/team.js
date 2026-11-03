@@ -22,7 +22,7 @@ class TeamPage {
       .map((rank) => ({ rank, people: team.filter((p) => p.rank.id === rank.id) }))
       .filter((g) => g.people.length);
     root.replaceChildren(...groups.map(({ rank, people }) => el('section', { class: 'team-group' },
-      el('h2', {}, el('span', { class: 'swatch', style: { background: rank.color } }), `${rank.name}${people.length > 1 ? 's' : ''}`),
+      el('h2', { class: 'team-group' }, `${rank.name}${people.length > 1 ? 's' : ''}`, rankBadge(rank, { size: 22 })),
       el('div', { class: 'people' }, people.map((p) => TeamPage.person(p))))));
   }
 
@@ -30,8 +30,7 @@ class TeamPage {
     return el('a', { class: 'person', href: `/player/${encodeURIComponent(p.name)}` },
       el('img', { src: avatar(p.uuid, 96), alt: '' }),
       el('span', { class: 'who' },
-        el('b', {}, p.name, el('span', { class: `dot${p.playing ? ' on' : ''}`, title: p.playing ? 'In game' : 'Offline' })),
-        rankBadge(p.rank),
+        el('b', {}, p.name, rankBadge(p.rank), el('span', { class: `dot${p.playing ? ' on' : ''}`, title: p.playing ? 'In game' : 'Offline' })),
         p.playing && p.playing.server ? el('small', { class: 'where' }, p.playing.server === 'singleplayer' ? 'Singleplayer' : `On ${p.playing.server}`) : null));
   }
 }

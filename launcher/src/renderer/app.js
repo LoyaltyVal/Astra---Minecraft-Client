@@ -493,12 +493,63 @@ async function loadAstra() {
   renderCosmetics();
 }
 
+/** The Astra rank star, 16 x 16 pixels (same picture as in game and on the website). */
+const RANK_STAR = [
+  '............M...',
+  '...........MWM..',
+  '......LW....M...',
+  '.....LWWL.......',
+  '..MM.WL.WL......',
+  '.M..LW...WL.....',
+  'M..LWD...DWL....',
+  'M..WL.....LW..MM',
+  '.MLWMMMMMMMWLM.M',
+  '..WWWWWWWWWWWLM.',
+  '.LWLDDDDDDDLWL..',
+  '.WL.......LWL...',
+  'LWL........LWL..',
+  'WL..........WL..',
+  'D............D..',
+  '................'
+];
+const RANK_SHADE = { W: 1, L: 0.82, M: 0.62, D: 0.42 };
+
+/** An <svg> of the rank star in the rank's colour (#rrggbb). Built with DOM calls, so the CSP allows it. */
+function rankStar(color, size) {
+  const NS = 'http://www.w3.org/2000/svg';
+  const hex = /^#[0-9a-f]{6}$/i.test(color) ? color : '#9c99ba';
+  const rgb = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 16 16');
+  svg.setAttribute('width', size);
+  svg.setAttribute('height', size);
+  svg.setAttribute('shape-rendering', 'crispEdges');
+  RANK_STAR.forEach((row, y) => {
+    for (let x = 0; x < row.length; x++) {
+      const ch = row[x];
+      if (ch === '.') continue;
+      let run = 1;
+      while (row[x + run] === ch) run++;
+      const r = document.createElementNS(NS, 'rect');
+      r.setAttribute('x', x);
+      r.setAttribute('y', y);
+      r.setAttribute('width', run);
+      r.setAttribute('height', 1);
+      r.setAttribute('fill', `rgb(${rgb.map((v) => Math.round(v * RANK_SHADE[ch])).join(',')})`);
+      svg.appendChild(r);
+      x += run - 1;
+    }
+  });
+  return svg;
+}
+
 function renderAstraAccount() {
   const rank = $('account-rank');
   const a = state.account && state.astra;
   if (a && a.rank && a.rank.id !== 'player') {
-    rank.textContent = a.rank.name;
-    rank.style.color = a.rank.color;
+    rank.replaceChildren(rankStar(a.rank.color, 14));
+    rank.title = a.rank.name;
+    rank.setAttribute('aria-label', `${a.rank.name} rank`);
     rank.hidden = false;
   } else {
     rank.hidden = true;
@@ -607,6 +658,12 @@ function friendCard(f, buttons) {
   const who = el('div', 'who');
   const name = el('b', '', f.name);
   if (f.rank && f.rank.color) name.style.color = f.rank.color;
+  if (f.rank && f.rank.id && f.rank.id !== 'player') {
+    const star = el('span', 'rank-star');
+    star.title = f.rank.name;
+    star.appendChild(rankStar(f.rank.color, 13));
+    name.appendChild(star);
+  }
   who.append(name, el('span', '', statusOf(f)));
   const acts = el('div', 'acts');
   for (const [label, cls, fn] of buttons) {

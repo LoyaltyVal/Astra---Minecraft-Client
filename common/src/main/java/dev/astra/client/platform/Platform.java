@@ -68,7 +68,15 @@ public interface Platform {
     void rotate(float angle, float x, float y, float z);
 
     /** A textured quad in GUI coordinates (UVs 0..1), drawn white and alpha-blended. */
-    void drawTexture(Object handle, float x, float y, float w, float h, float u0, float v0, float u1, float v1);
+    default void drawTexture(Object handle, float x, float y, float w, float h, float u0, float v0, float u1, float v1) {
+        drawTexture(handle, x, y, w, h, u0, v0, u1, v1, 0xFFFFFFFF);
+    }
+
+    /**
+     * A textured quad in the current matrix (GUI coordinates, or a name tag's space), alpha-blended
+     * and multiplied by `argb` (white = the image as is; a grey image becomes that colour, shaded).
+     */
+    void drawTexture(Object handle, float x, float y, float w, float h, float u0, float v0, float u1, float v1, int argb);
 
     /**
      * A solid triangle strip in GUI coordinates: xy holds x0, y0, x1, y1, ... (used for rings).

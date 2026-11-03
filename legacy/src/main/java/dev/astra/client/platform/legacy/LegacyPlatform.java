@@ -46,9 +46,9 @@ public abstract class LegacyPlatform implements Platform {
     // ------------------------------------------------------------------ drawing
 
     @Override
-    public void drawTexture(Object handle, float x, float y, float w, float h, float u0, float v0, float u1, float v1) {
+    public void drawTexture(Object handle, float x, float y, float w, float h, float u0, float v0, float u1, float v1, int argb) {
         bindTexture(handle);
-        color(1f, 1f, 1f, 1f);
+        color(((argb >> 16) & 255) / 255f, ((argb >> 8) & 255) / 255f, (argb & 255) / 255f, ((argb >>> 24) & 255) / 255f);
         blend(true);
         GL11.glBegin(GL11.GL_QUADS);
         GL11.glTexCoord2f(u0, v0);
@@ -60,6 +60,7 @@ public abstract class LegacyPlatform implements Platform {
         GL11.glTexCoord2f(u1, v0);
         GL11.glVertex2f(x + w, y);
         GL11.glEnd();
+        color(1f, 1f, 1f, 1f);
     }
 
     @Override

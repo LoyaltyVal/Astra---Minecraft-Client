@@ -36,8 +36,56 @@ document.addEventListener('error', (e) => {
 export const avatar = (uuid, size = 64) => `https://mc-heads.net/avatar/${uuid}/${size}`;
 export const body = (uuid, size = 220) => `https://mc-heads.net/body/${uuid}/${size}`;
 
-export function rankBadge(rank) {
-  return el('span', { class: 'rank', style: { color: rank.color } }, rank.name);
+/** The Astra rank star, 16 x 16 pixels: W/L/M/D are shades of the rank colour, '.' is empty. */
+const RANK_STAR = [
+  '............M...',
+  '...........MWM..',
+  '......LW....M...',
+  '.....LWWL.......',
+  '..MM.WL.WL......',
+  '.M..LW...WL.....',
+  'M..LWD...DWL....',
+  'M..WL.....LW..MM',
+  '.MLWMMMMMMMWLM.M',
+  '..WWWWWWWWWWWLM.',
+  '.LWLDDDDDDDLWL..',
+  '.WL.......LWL...',
+  'LWL........LWL..',
+  'WL..........WL..',
+  'D............D..',
+  '................'
+];
+const SHADE = { W: 1, L: 0.82, M: 0.62, D: 0.42 };
+
+/** The rank star as crisp SVG markup in the given colour (#rrggbb), the same picture as in game. */
+export function rankStarSvg(color, size = 16) {
+  const hex = /^#[0-9a-f]{6}$/i.test(color) ? color : '#9c99ba';
+  const rgb = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  let rects = '';
+  RANK_STAR.forEach((row, y) => {
+    for (let x = 0; x < row.length; x++) {
+      const ch = row[x];
+      if (ch === '.') continue;
+      let run = 1;
+      while (row[x + run] === ch) run++;
+      const k = SHADE[ch];
+      rects += `<rect x="${x}" y="${y}" width="${run}" height="1" fill="rgb(${rgb.map((v) => Math.round(v * k)).join(',')})"/>`;
+      x += run - 1;
+    }
+  });
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="${size}" height="${size}" shape-rendering="crispEdges" aria-hidden="true">${rects}</svg>`;
+}
+
+/**
+ * A player's rank as their rank star (no star for plain players). The rank's name is the tooltip;
+ * `{ label: true }` also writes it out (the admin panel, where staff need to read it).
+ */
+export function rankBadge(rank, { label = false, size = 16 } = {}) {
+  if (!rank || (rank.id === 'player' && !label)) return null;
+  const node = el('span', { class: `rank-star${label ? ' with-label' : ''}`, title: rank.name, role: 'img', 'aria-label': `${rank.name} rank`, style: { color: rank.color } });
+  if (rank.id !== 'player') node.innerHTML = rankStarSvg(rank.color, size);
+  if (label) node.append(el('span', {}, rank.name));
+  return node;
 }
 
 export function timeAgo(iso) {

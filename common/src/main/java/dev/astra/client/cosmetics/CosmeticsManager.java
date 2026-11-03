@@ -71,13 +71,13 @@ public final class CosmeticsManager {
     static final class PlayerInfo {
         final boolean astra;
         final String rankName;
-        final String rankColor;   // Minecraft colour code, e.g. "c"
+        final int rankColor;      // 0xRRGGBB, from the rank's colour on the server (Owner = red)
         final boolean ranked;     // anything above Player gets a tag
         final String cape;
         final String wings;
         final long fetched;
 
-        PlayerInfo(boolean astra, String rankName, String rankColor, boolean ranked,
+        PlayerInfo(boolean astra, String rankName, int rankColor, boolean ranked,
                    String cape, String wings, long fetched) {
             this.astra = astra;
             this.rankName = rankName;
@@ -89,7 +89,7 @@ public final class CosmeticsManager {
         }
 
         static PlayerInfo notAstra(long fetched) {
-            return new PlayerInfo(false, null, null, false, null, null, fetched);
+            return new PlayerInfo(false, null, 0, false, null, null, fetched);
         }
 
         PlayerInfo withEquipped(Type type, String id) {
@@ -623,17 +623,28 @@ public final class CosmeticsManager {
         return tex == null ? null : tex.handle;
     }
 
-    /** "§c[Owner] " for ranked Astra players, or null. Drawn in front of their name tag. */
-    public String getRankTag(UUID uuid) {
+    /**
+     * The colour of a ranked Astra player's rank star (0xRRGGBB), or null for players without a
+     * rank above Player (or when rank icons are turned off). Drawn in front of their name tag.
+     */
+    public Integer getRankColor(UUID uuid) {
         CosmeticsModule settings = settings();
         if (settings != null && !settings.showRankTags()) {
             return null;
         }
         PlayerInfo info = visible(uuid);
-        if (info == null || !info.ranked || info.rankName == null) {
+        if (info == null || !info.ranked) {
             return null;
         }
-        return "§" + info.rankColor + "[" + info.rankName + "]§r ";
+        return info.rankColor;
+    }
+
+    /** "#ff5c7a" → 0xFF5C7A; anything else → fallback. */
+    static int parseColor(String hex, int fallback) {
+        if (hex == null || !hex.matches("#?[0-9a-fA-F]{6}")) {
+            return fallback;
+        }
+        return Integer.parseInt(hex.startsWith("#") ? hex.substring(1) : hex, 16);
     }
 
     /**
@@ -713,9 +724,7 @@ public final class CosmeticsManager {
     private static PlayerInfo player(JsonObject o, String cape, String wings) {
         JsonObject rank = o.has("rank") && o.get("rank").isJsonObject() ? o.getAsJsonObject("rank") : new JsonObject();
         String rankId = string(rank, "id");
-        String mc = string(rank, "mc");
-        return new PlayerInfo(true, string(rank, "name"),
-                mc == null || mc.length() != 1 ? "7" : mc,
+        return new PlayerInfo(true, string(rank, "name"), parseColor(string(rank, "color"), 0xA0A0B0),
                 rankId != null && !"player".equals(rankId),
                 cape, wings, System.currentTimeMillis());
     }

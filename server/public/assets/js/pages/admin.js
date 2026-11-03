@@ -70,7 +70,7 @@ class PlayersPanel {
         },
         el('img', { src: avatar(p.uuid, 48), alt: '' }),
         el('span', { class: 'pname' }, p.name, p.joinedAt ? null : el('small', { class: 'muted' }, ' not signed in yet')),
-        p.banned ? el('span', { class: 'rank', style: { color: 'var(--rose)' } }, 'Banned') : rankBadge(p.rank),
+        p.banned ? el('span', { class: 'rank', style: { color: 'var(--rose)' } }, 'Banned') : rankBadge(p.rank, { label: true }),
         el('span', { class: `dot${p.online ? ' on' : ''}` }))));
       if (this.selected) {
         const fresh = players.find((p) => p.uuid === this.selected.uuid);
@@ -367,7 +367,7 @@ class AdminPage {
       el('div', { class: 'admin-head' },
         el('div', {}, el('p', { class: 'kicker' }, 'Admin panel'), el('h1', {}, 'Run Astra')),
         el('div', { class: 'admin-me' }, el('img', { src: avatar(this.me.uuid, 56), alt: '' }),
-          el('div', {}, el('b', {}, this.me.name), rankBadge(this.me.rank)),
+          el('div', {}, el('b', {}, this.me.name), rankBadge(this.me.rank, { label: true })),
           el('a', { class: 'btn btn-quiet btn-sm', href: '/logout' }, 'Sign out'))),
       el('div', { class: 'stats' },
         AdminPage.stat(stats.players, 'players'), AdminPage.stat(stats.online, 'online now'),

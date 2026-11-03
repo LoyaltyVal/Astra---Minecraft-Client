@@ -523,7 +523,7 @@ public final class SocialManager {
 
     public String selfUuid() {
         Astra astra = Astra.get();
-        String s = astra == null ? null : astra.getCosmetics().getSelfUuid();
+        String s = astra == null || astra.getCosmetics() == null ? null : astra.getCosmetics().getSelfUuid();
         return s == null ? "" : s;
     }
 
