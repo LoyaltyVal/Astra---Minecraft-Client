@@ -349,6 +349,17 @@ public final class PlatformImpl extends dev.astra.client.platform.legacy.LegacyP
                 out.add(((net.minecraft.entity.Entity) o).getUuid().toString());
             }
         }
+        // Everyone in the tab list too, so their rank star shows there. Only real accounts
+        // (version 4 UUIDs): servers' NPC entries use other versions and would just be lookups wasted.
+        ClientPlayNetworkHandler handler = mc().getNetworkHandler();
+        if (handler != null) {
+            for (PlayerListEntry entry : new ArrayList<PlayerListEntry>(handler.getPlayerList())) {
+                java.util.UUID id = entry.getProfile() == null ? null : entry.getProfile().getId();
+                if (id != null && id.version() == 4 && !out.contains(id.toString())) {
+                    out.add(id.toString());
+                }
+            }
+        }
         return out;
     }
 

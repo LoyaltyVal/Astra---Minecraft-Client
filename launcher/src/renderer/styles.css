@@ -1,3 +1,6 @@
+/* Anything marked hidden stays hidden, whatever display a class gives it. */
+[hidden] { display: none !important; }
+
 :root {
   --bg: #09090f;
   --panel: #111119;
@@ -66,6 +69,18 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 }
 .brand { display: flex; align-items: center; gap: 9px; font-weight: 700; letter-spacing: .24em; font-size: 12px; }
 .brand .star { width: 14px; height: 14px; fill: var(--accent); filter: drop-shadow(0 0 6px var(--accent-glow)); }
+.update-bar {
+  margin-left: auto; margin-right: 10px; display: flex; align-items: center; gap: 10px; height: 26px; padding: 0 6px 0 12px;
+  border-radius: 999px; border: 1px solid var(--line-strong); background: var(--accent-soft); font-size: 12px; -webkit-app-region: no-drag;
+}
+.update-bar button { border: 0; border-radius: 999px; padding: 4px 10px; font: inherit; font-weight: 600; background: var(--accent); color: #fff; cursor: pointer; }
+.update-bar button:hover { filter: brightness(1.1); }
+.updates-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.updates-row .footnote { margin: 0; }
+button.small { padding: 5px 10px; font-size: 12px; }
+/* macOS: the system's traffic lights replace Astra's window buttons. */
+.platform-darwin .window-controls { display: none; }
+.platform-darwin .titlebar { padding-left: 78px; }
 .window-controls { display: flex; height: 100%; -webkit-app-region: no-drag; }
 .window-controls button { width: 46px; height: 100%; border: 0; background: transparent; display: grid; place-items: center; }
 .window-controls svg { width: 12px; height: 12px; fill: none; stroke: var(--muted); stroke-width: 1.2; }

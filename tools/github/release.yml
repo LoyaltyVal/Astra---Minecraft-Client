@@ -1,0 +1,141 @@
+# Builds Astra for Windows, macOS and Linux and publishes a GitHub Release. Installed launchers
+# update themselves from the newest release.
+#
+# To release: bump "version" in launcher/package.json (e.g. 1.0.1), commit, then push a matching tag:
+#   git tag v1.0.1 && git push origin v1.0.1
+#
+# Settings → Secrets and variables → Actions:
+#   Variable ASTRA_SERVER_URL   your permanent Astra server address (required; baked into the launcher)
+#   Optional secrets, signing turns on when they're set (see launcher/electron-builder.config.js):
+#     Windows, Azure Artifact Signing: AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET,
+#       ASTRA_AZURE_ENDPOINT, ASTRA_AZURE_ACCOUNT, ASTRA_AZURE_PROFILE, ASTRA_PUBLISHER_NAME
+#     Windows, .pfx: WIN_CSC_LINK, WIN_CSC_KEY_PASSWORD
+#     macOS: MAC_CSC_LINK, MAC_CSC_KEY_PASSWORD, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        name: Tag matches the launcher version
+        run: |
+          VERSION=$(node -p "require('./launcher/package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "v$VERSION" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} doesn't match launcher/package.json version $VERSION (expected v$VERSION)."
+            exit 1
+          fi
+      - name: Server address is set and permanent
+        env:
+          URL: ${{ vars.ASTRA_SERVER_URL }}
+        run: |
+          if [ -z "$URL" ]; then echo "::error::Set the ASTRA_SERVER_URL variable (Settings → Secrets and variables → Actions → Variables)."; exit 1; fi
+          case "$URL" in *trycloudflare.com*) echo "::error::ASTRA_SERVER_URL is a temporary quick-tunnel address; set up a permanent one first."; exit 1;; esac
+
+  mods:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build Astra for every Minecraft version
+        run: bash ./gradlew build --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mods
+          path: versions/*/build/libs/*.jar
+          if-no-files-found: error
+
+  draft:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: v${{ needs.check.outputs.version }}
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 || \
+            gh release create "$TAG" --draft --title "Astra $TAG" --generate-notes --target "$GITHUB_SHA"
+
+  launcher:
+    needs: [check, mods, draft]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: --win
+          - os: macos-latest
+            target: --mac
+          - os: ubuntu-latest
+            target: --linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: mods
+          path: versions
+      - name: Point the launcher at the Astra server
+        shell: bash
+        env:
+          URL: ${{ vars.ASTRA_SERVER_URL }}
+        run: |
+          node -e "require('fs').writeFileSync('launcher/build-config.json', JSON.stringify({ serverUrl: process.env.URL.replace(/\/+$/, '') }, null, 2) + '\n')"
+      - name: Install
+        working-directory: launcher
+        run: npm install --no-audit --no-fund
+      - name: Build and upload
+        working-directory: launcher
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ASTRA_RELEASE_TYPE: draft
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          ASTRA_AZURE_ENDPOINT: ${{ secrets.ASTRA_AZURE_ENDPOINT }}
+          ASTRA_AZURE_ACCOUNT: ${{ secrets.ASTRA_AZURE_ACCOUNT }}
+          ASTRA_AZURE_PROFILE: ${{ secrets.ASTRA_AZURE_PROFILE }}
+          ASTRA_PUBLISHER_NAME: ${{ secrets.ASTRA_PUBLISHER_NAME }}
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+          CSC_LINK: ${{ matrix.os == 'macos-latest' && secrets.MAC_CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ matrix.os == 'macos-latest' && secrets.MAC_CSC_KEY_PASSWORD || '' }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          node scripts/copy-mods.js
+          npx electron-builder ${{ matrix.target }} --config electron-builder.config.js --publish always
+
+  publish:
+    needs: [check, launcher]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish the release (launchers start updating now)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "v${{ needs.check.outputs.version }}" --draft=false --latest

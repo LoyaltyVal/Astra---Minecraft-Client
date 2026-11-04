@@ -15,6 +15,10 @@
       <svg class="star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5l2.6 7.9 7.9 2.6-7.9 2.6L12 22.5l-2.6-7.9L1.5 12l7.9-2.6z"/></svg>
       <span>ASTRA</span>
     </div>
+    <div class="update-bar" id="update-bar" role="status" hidden>
+      <span id="update-text"></span>
+      <button id="update-action" hidden></button>
+    </div>
     <div class="window-controls">
       <button id="win-min" title="Minimize" aria-label="Minimize"><svg viewBox="0 0 12 12"><path d="M2 6h8"/></svg></button>
       <button id="win-max" title="Maximize" aria-label="Maximize"><svg viewBox="0 0 12 12"><rect x="2.5" y="2.5" width="7" height="7"/></svg></button>
@@ -242,7 +246,11 @@
           </div>
         </div>
 
-        <p class="footnote" id="app-version"></p>
+        <div class="updates-row">
+          <p class="footnote" id="app-version"></p>
+          <span class="footnote" id="update-status"></span>
+          <button class="ghost small" id="update-check">Check for updates</button>
+        </div>
       </section>
     </main>
   </div>

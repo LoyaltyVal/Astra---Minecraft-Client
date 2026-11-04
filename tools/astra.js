@@ -159,6 +159,26 @@ async function setupServerConfig() {
 async function build() {
   await run(WIN ? 'gradlew.bat' : './gradlew', ['build', '--console=plain'], ROOT, 'Building the Minecraft client (this takes a while the first time)...', gradleEnv);
   say('Client built.');
+  publishMods();
+}
+
+/**
+ * Copies the fresh Astra builds next to the server (server/downloads/mods/<version>/astra.jar).
+ * Installed launchers download them before each launch, so every player gets the new build.
+ */
+function publishMods() {
+  const props = fs.readFileSync(path.join(ROOT, 'gradle.properties'), 'utf8');
+  const modVersion = ((/^mod_version=(.+)$/m.exec(props) || [])[1] || '').trim();
+  const published = [];
+  for (const v of fs.readdirSync(path.join(ROOT, 'versions'))) {
+    const jar = path.join(ROOT, 'versions', v, 'build', 'libs', `astra-${modVersion}+${v}.jar`);
+    if (!/^\d+(\.\d+){1,2}$/.test(v) || !fs.existsSync(jar)) continue;
+    const dir = path.join(SERVER, 'downloads', 'mods', v);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.copyFileSync(jar, path.join(dir, 'astra.jar'));
+    published.push(v);
+  }
+  if (published.length) say(`Players' launchers will pick up this build (${published.join(', ')}) on their next launch.`);
 }
 
 async function serverRunning(port) {

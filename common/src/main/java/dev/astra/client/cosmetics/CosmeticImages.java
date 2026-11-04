@@ -42,6 +42,159 @@ public final class CosmeticImages {
         return limit(toArgb(raw), MAX_SIZE);
     }
 
+    // ------------------------------------------------------------------ animation
+
+    /** An animated cosmetic: frames (already full pictures, not GIF patches) and how long each shows. */
+    public static final class Animation {
+        public final java.util.List<BufferedImage> frames;
+        public final int[] delaysMs;
+
+        Animation(java.util.List<BufferedImage> frames, int[] delaysMs) {
+            this.frames = frames;
+            this.delaysMs = delaysMs;
+        }
+    }
+
+    /** Animated capes keep at most this many frames, each at most this wide (memory and upload time). */
+    static final int MAX_FRAMES = 60;
+    static final int MAX_ANIMATED_WIDTH = 256;
+
+    /**
+     * Reads an animated cosmetic, or returns null when the data is a still picture:
+     *  - an animated GIF (frame timing from the GIF), or
+     *  - a cape "strip": a PNG with several 2:1 cape templates stacked top to bottom
+     *    (the common animated-cape format, 10 frames a second).
+     */
+    public static Animation readAnimation(byte[] data, boolean cape) throws IOException {
+        if (data.length > 6 && data[0] == 'G' && data[1] == 'I' && data[2] == 'F') {
+            return readGif(data);
+        }
+        if (!cape) {
+            return null;
+        }
+        BufferedImage img = ImageIO.read(new java.io.ByteArrayInputStream(data));
+        if (img == null) {
+            return null;
+        }
+        int w = img.getWidth();
+        int frameH = w / 2;
+        if (w % 64 != 0 || frameH == 0 || img.getHeight() % frameH != 0 || img.getHeight() / frameH < 2) {
+            return null;
+        }
+        int count = Math.min(MAX_FRAMES, img.getHeight() / frameH);
+        java.util.List<BufferedImage> frames = new java.util.ArrayList<BufferedImage>();
+        int[] delays = new int[count];
+        for (int i = 0; i < count; i++) {
+            frames.add(toArgb(img.getSubimage(0, i * frameH, w, frameH)));
+            delays[i] = 100;
+        }
+        return new Animation(frames, delays);
+    }
+
+    /** Decodes every frame of a GIF into a full picture (applying offsets and disposal), or null if it has one frame. */
+    private static Animation readGif(byte[] data) throws IOException {
+        javax.imageio.ImageReader reader = ImageIO.getImageReadersByFormatName("gif").next();
+        javax.imageio.stream.ImageInputStream in = ImageIO.createImageInputStream(new java.io.ByteArrayInputStream(data));
+        try {
+            reader.setInput(in, false);
+            int count = reader.getNumImages(true);
+            if (count < 2) {
+                return null;
+            }
+            int width = -1;
+            int height = -1;
+            javax.imageio.metadata.IIOMetadata stream = reader.getStreamMetadata();
+            if (stream != null) {
+                org.w3c.dom.Node screen = child(stream.getAsTree("javax_imageio_gif_stream_1.0"), "LogicalScreenDescriptor");
+                if (screen != null) {
+                    width = intAttr(screen, "logicalScreenWidth", -1);
+                    height = intAttr(screen, "logicalScreenHeight", -1);
+                }
+            }
+            BufferedImage first = reader.read(0);
+            if (width <= 0 || height <= 0) {
+                width = first.getWidth();
+                height = first.getHeight();
+            }
+            BufferedImage canvas = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+            java.util.List<BufferedImage> frames = new java.util.ArrayList<BufferedImage>();
+            java.util.List<Integer> delays = new java.util.ArrayList<Integer>();
+            // Keep every n-th frame when there are too many, adding up their time so the speed stays right.
+            int step = Math.max(1, (count + MAX_FRAMES - 1) / MAX_FRAMES);
+            int pendingDelay = 0;
+            for (int i = 0; i < count; i++) {
+                BufferedImage frame = i == 0 ? first : reader.read(i);
+                org.w3c.dom.Node meta = reader.getImageMetadata(i).getAsTree("javax_imageio_gif_image_1.0");
+                org.w3c.dom.Node desc = child(meta, "ImageDescriptor");
+                org.w3c.dom.Node gce = child(meta, "GraphicControlExtension");
+                int x = desc == null ? 0 : intAttr(desc, "imageLeftPosition", 0);
+                int y = desc == null ? 0 : intAttr(desc, "imageTopPosition", 0);
+                int delay = gce == null ? 10 : intAttr(gce, "delayTime", 10) * 10;
+                if (delay < 20) {
+                    delay = 100; // browsers treat 0-10 ms the same way
+                }
+                String disposal = gce == null ? "none" : String.valueOf(((org.w3c.dom.Element) gce).getAttribute("disposalMethod"));
+
+                BufferedImage before = "restoreToPrevious".equals(disposal) ? copy(canvas) : null;
+                Graphics2D g = canvas.createGraphics();
+                g.drawImage(frame, x, y, null);
+                g.dispose();
+                pendingDelay += delay;
+                if (i % step == 0 || i == count - 1) {
+                    frames.add(copy(canvas));
+                    delays.add(pendingDelay);
+                    pendingDelay = 0;
+                }
+                if ("restoreToBackgroundColor".equals(disposal)) {
+                    Graphics2D clear = canvas.createGraphics();
+                    clear.setComposite(java.awt.AlphaComposite.Clear);
+                    clear.fillRect(x, y, frame.getWidth(), frame.getHeight());
+                    clear.dispose();
+                } else if (before != null) {
+                    canvas = before;
+                }
+            }
+            int[] d = new int[delays.size()];
+            for (int i = 0; i < d.length; i++) {
+                d[i] = delays.get(i);
+            }
+            return new Animation(frames, d);
+        } finally {
+            reader.dispose();
+            in.close();
+        }
+    }
+
+    private static org.w3c.dom.Node child(org.w3c.dom.Node parent, String name) {
+        for (org.w3c.dom.Node n = parent.getFirstChild(); n != null; n = n.getNextSibling()) {
+            if (name.equals(n.getNodeName())) {
+                return n;
+            }
+        }
+        return null;
+    }
+
+    private static int intAttr(org.w3c.dom.Node node, String name, int fallback) {
+        try {
+            return Integer.parseInt(((org.w3c.dom.Element) node).getAttribute(name));
+        } catch (RuntimeException e) {
+            return fallback;
+        }
+    }
+
+    /**
+     * Cape textures for every frame of an animated cape, all the same size. Artwork frames are
+     * fitted without the per-picture crop (which could differ frame to frame and make it jitter).
+     */
+    public static java.util.List<BufferedImage> toCapeFrames(Animation anim) {
+        java.util.List<BufferedImage> out = new java.util.ArrayList<BufferedImage>();
+        for (BufferedImage f : anim.frames) {
+            BufferedImage tex = isCapeTemplate(f) ? f : capeFromArt(f);
+            out.add(limit(tex, MAX_ANIMATED_WIDTH));
+        }
+        return out;
+    }
+
     // ------------------------------------------------------------------ capes
 
     public static boolean isCapeTemplate(BufferedImage img) {
@@ -54,7 +207,11 @@ public final class CosmeticImages {
             return img;
         }
         // Art from image generators often has the cape floating on a plain backdrop: crop to it.
-        img = cropToContent(img);
+        return capeFromArt(cropToContent(img));
+    }
+
+    /** Wraps a picture onto the cape template (front, back, edges). */
+    private static BufferedImage capeFromArt(BufferedImage img) {
         // One "cape pixel" = unit texture pixels; the cape face is 10 x 16 cape pixels.
         int unit = Math.max(1, Math.min(16, Math.min(img.getWidth() / 10, img.getHeight() / 16)));
         int faceW = 10 * unit;

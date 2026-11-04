@@ -9,6 +9,7 @@ const astraServer = require('./astraServer');
 const { KNOWN_VERSIONS } = require('./config');
 const { availableVersions } = require('./mods');
 const { launchGame, isRunning, killGame } = require('./launch');
+const updater = require('./updater');
 
 let win = null;
 
@@ -38,7 +39,10 @@ function createWindow() {
     height: 660,
     minWidth: 920,
     minHeight: 580,
-    frame: false,
+    // Windows and Linux use Astra's own title bar; macOS keeps its traffic lights, inset into it.
+    frame: process.platform === 'darwin',
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    trafficLightPosition: { x: 14, y: 12 },
     show: false,
     backgroundColor: '#0a0a12',
     title: 'Astra Launcher',
@@ -119,6 +123,10 @@ handle('app:info', () => ({
   gameFolder: paths.root()
 }));
 
+handle('update:status', () => updater.getStatus());
+handle('update:check', () => updater.check());
+handle('update:install', () => updater.install());
+
 handle('auth:get', () => auth.getAccount());
 handle('auth:login', () => auth.login());
 handle('auth:logout', () => {
@@ -182,6 +190,11 @@ ipcMain.on('window:close', () => win && win.close());
 app.whenReady().then(() => {
   log.open();
   createWindow();
+  updater.start({
+    onStatus: (status) => send('update:status', status),
+    logger: (line) => log.write(line),
+    gameRunning: isRunning
+  });
 });
 
 app.on('window-all-closed', () => {

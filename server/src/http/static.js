@@ -11,10 +11,17 @@ const TYPES = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
   '.webp': 'image/webp',
-  '.txt': 'text/plain; charset=utf-8'
+  '.txt': 'text/plain; charset=utf-8',
+  '.zip': 'application/zip',
+  '.jar': 'application/java-archive',
+  '.exe': 'application/vnd.microsoft.portable-executable',
+  '.dmg': 'application/x-apple-diskimage',
+  '.appimage': 'application/octet-stream',
+  '.gz': 'application/gzip'
 };
 
 /**
@@ -36,7 +43,7 @@ function serveFile(res, root, relPath, req) {
   const etag = `"${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}"`;
   const headers = {
     'Content-Type': TYPES[ext] || 'application/octet-stream',
-    'Cache-Control': ext === '.html' || ext === '.exe' ? 'no-cache' : 'public, max-age=3600',
+    'Cache-Control': ['.html', '.exe', '.dmg', '.appimage', '.gz', '.zip', '.jar'].includes(ext) ? 'no-cache' : 'public, max-age=3600',
     ETag: etag,
     'X-Content-Type-Options': 'nosniff'
   };

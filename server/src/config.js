@@ -16,6 +16,9 @@ const DEFAULTS = {
   dataDir: 'data',
   // Where the website's Download buttons point (e.g. a GitHub Releases file). Empty = "coming soon".
   downloadUrl: '',
+  // "owner/repo" whose GitHub Releases hold the launcher (built by .github/workflows/release.yml).
+  // When set, the website offers the Windows, macOS and Linux downloads from the newest release.
+  releasesRepo: '',
   // Discord (all optional):
   //   discordInvite    an invite link, shown as a Discord button on the website
   //   discordWebhook   a channel webhook URL; new players and staff actions are posted there
@@ -50,6 +53,7 @@ function loadConfig() {
   if (process.env.ASTRA_DEV_AUTH) env.devAuth = process.env.ASTRA_DEV_AUTH === '1';
   if (process.env.ASTRA_DATA_DIR) env.dataDir = process.env.ASTRA_DATA_DIR;
   if (process.env.ASTRA_DOWNLOAD_URL) env.downloadUrl = process.env.ASTRA_DOWNLOAD_URL;
+  if (process.env.ASTRA_RELEASES_REPO) env.releasesRepo = process.env.ASTRA_RELEASES_REPO;
   if (process.env.ASTRA_DISCORD_INVITE) env.discordInvite = process.env.ASTRA_DISCORD_INVITE;
   if (process.env.ASTRA_DISCORD_WEBHOOK) env.discordWebhook = process.env.ASTRA_DISCORD_WEBHOOK;
   if (process.env.ASTRA_DISCORD_CLIENT_ID) env.discordClientId = process.env.ASTRA_DISCORD_CLIENT_ID;

@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class LivingEntityRendererMixin {
 
     /** hasLabel (MCP: RendererLivingEntity#canRenderName). */
-    @Inject(method = "hasLabel", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "hasLabel(Lnet/minecraft/entity/LivingEntity;)Z", at = @At("HEAD"), cancellable = true)
     private void astra$ownNametag(LivingEntity entity, CallbackInfoReturnable<Boolean> cir) {
         if ((Object) entity == MinecraftClient.getInstance().player && !entity.isInvisible() && Astra.get().showOwnNametag()) {
             cir.setReturnValue(true);

@@ -68,8 +68,8 @@ class AccountPage {
       card.append(el('p', { class: 'muted' }, 'Uploads are switched off on this server.'));
       return card;
     }
-    card.append(el('p', { class: 'muted' }, 'Upload a picture and staff check it first. Once approved, only you can wear it, and it goes on straight away. Wings: upload one wing (the left one); Astra mirrors it.'));
-    const file = el('input', { type: 'file', accept: 'image/png,image/jpeg', 'aria-label': 'Image' });
+    card.append(el('p', { class: 'muted' }, 'Upload a picture and staff check it first. Once approved, only you can wear it, and it goes on straight away. Wings: upload one wing (the left one); Astra mirrors it. Capes can be animated: upload a GIF and it plays in game.'));
+    const file = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/gif', 'aria-label': 'Image' });
     const name = el('input', { maxlength: '40', placeholder: 'Name, e.g. Midnight', 'aria-label': 'Name', required: true });
     const type = el('select', { 'aria-label': 'Type' }, el('option', { value: 'cape' }, 'Cape'), el('option', { value: 'wings' }, 'Wings'));
     const preview = el('div', { class: 'up-prev' }, el('span', {}, 'Preview'));

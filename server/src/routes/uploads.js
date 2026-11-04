@@ -3,7 +3,7 @@
 const { sendJson, HttpError, readJson } = require('../http/Router');
 const { requirePlayer, requirePermission } = require('./guards');
 
-const DATA_URL = /^data:image\/(png|jpe?g);base64,([A-Za-z0-9+/=]+)$/;
+const DATA_URL = /^data:image\/(png|jpe?g|gif);base64,([A-Za-z0-9+/=]+)$/;
 
 /**
  * Player uploads: anyone signed in can upload their own cape or wings. Staff (Moderator and up)
@@ -26,7 +26,7 @@ function uploadRoutes(router, ctx) {
     if (Date.now() - last < 20_000) throw new HttpError(429, 'Wait a few seconds before uploading again.');
     const body = await readJson(req, 3 * 1024 * 1024);
     const m = DATA_URL.exec(String(body.image || ''));
-    if (!m) throw new HttpError(400, 'Choose a PNG or JPEG image.');
+    if (!m) throw new HttpError(400, 'Choose a PNG, JPEG or GIF image.');
     let c;
     try {
       c = cosmetics.submit(req.player, { name: body.name, type: body.type, image: Buffer.from(m[2], 'base64') });

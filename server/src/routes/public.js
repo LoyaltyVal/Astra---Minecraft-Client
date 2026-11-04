@@ -22,6 +22,108 @@ const DEFAULT_STATIONS = [
 
 const INSTALLER = path.join(__dirname, '..', '..', 'downloads', 'Astra-Setup.exe');
 
+/**
+ * The current Astra builds, put in server/downloads/mods/<version>/astra.jar by the build tools.
+ * Launchers download the newest one before each launch, so players get fixes without a new installer.
+ */
+const MODS_DIR = path.join(__dirname, '..', '..', 'downloads', 'mods');
+const modHashes = new Map(); // version -> { mtime, size, sha1 }
+
+function clientMods() {
+  const out = {};
+  let versions = [];
+  try {
+    versions = fs.readdirSync(MODS_DIR).filter((v) => /^\d+(\.\d+){1,2}$/.test(v));
+  } catch {
+    return out;
+  }
+  for (const v of versions) {
+    const file = path.join(MODS_DIR, v, 'astra.jar');
+    let stat;
+    try {
+      stat = fs.statSync(file);
+    } catch {
+      continue;
+    }
+    let h = modHashes.get(v);
+    if (!h || h.mtime !== stat.mtimeMs || h.size !== stat.size) {
+      h = { mtime: stat.mtimeMs, size: stat.size, sha1: require('crypto').createHash('sha1').update(fs.readFileSync(file)).digest('hex') };
+      modHashes.set(v, h);
+    }
+    out[v] = { sha1: h.sha1, size: h.size, builtAt: new Date(h.mtime).toISOString() };
+  }
+  return out;
+}
+
+/** Launcher files that can sit in server/downloads, and which download button each one is. */
+const LOCAL_DOWNLOADS = {
+  windows: ['Astra-Setup.exe'],
+  macArm: ['Astra-Launcher-mac-arm64.dmg', 'Astra-Launcher-mac-arm64.zip'],
+  macIntel: ['Astra-Launcher-mac-x64.dmg', 'Astra-Launcher-mac-x64.zip'],
+  linux: ['Astra-Launcher.AppImage', 'Astra-Launcher-linux-x64.tar.gz']
+};
+const DOWNLOADS_DIR = path.dirname(INSTALLER);
+const RELEASE_ASSETS = {
+  windows: 'Astra-Launcher-Setup.exe',
+  macArm: 'Astra-Launcher-mac-arm64.dmg',
+  macIntel: 'Astra-Launcher-mac-x64.dmg',
+  linux: 'Astra-Launcher.AppImage'
+};
+
+/**
+ * Which launcher downloads exist right now: files in server/downloads, plus (when "releasesRepo"
+ * is set) the files of the newest published GitHub Release. Only platforms that really have a
+ * file get a button, so the website never links to something missing.
+ */
+function createDownloads(config, fetchImpl) {
+  let release = { at: 0, assets: {}, page: null };
+  let refreshing = null;
+
+  async function refreshRelease() {
+    const repo = String(config.releasesRepo || '').trim();
+    if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) return;
+    try {
+      const res = await fetchImpl(`https://api.github.com/repos/${repo}/releases/latest`, {
+        headers: { 'User-Agent': 'AstraServer', Accept: 'application/vnd.github+json' },
+        signal: AbortSignal.timeout(5000)
+      });
+      if (res.status === 404) {
+        release = { at: Date.now(), assets: {}, page: null }; // no release published yet
+        return;
+      }
+      if (!res.ok) throw new Error(`GitHub answered ${res.status}`);
+      const data = await res.json();
+      const assets = {};
+      for (const [key, name] of Object.entries(RELEASE_ASSETS)) {
+        const a = (data.assets || []).find((x) => x.name === name);
+        if (a && a.browser_download_url) assets[key] = a.browser_download_url;
+      }
+      release = { at: Date.now(), assets, page: data.html_url || null, version: String(data.tag_name || '').replace(/^v/, '') };
+    } catch (e) {
+      release.at = Date.now() - 9 * 60 * 1000; // keep what we had; try again in a minute
+    }
+  }
+
+  return {
+    /** { windows?, macArm?, macIntel?, linux?, page? } (URLs), or null when there's nothing. */
+    async current() {
+      if (Date.now() - release.at > 10 * 60 * 1000) {
+        refreshing = refreshing || refreshRelease().finally(() => { refreshing = null; });
+        if (!release.at) await Promise.race([refreshing, new Promise((r) => setTimeout(r, 4000))]);
+      }
+      const out = { ...release.assets };
+      for (const [key, names] of Object.entries(LOCAL_DOWNLOADS)) {
+        if (out[key]) continue;
+        const name = names.find((n) => fs.existsSync(path.join(DOWNLOADS_DIR, n)));
+        if (name) out[key] = `/download/${name}`;
+      }
+      if (release.page) out.page = release.page;
+      if (release.version) out.version = release.version;
+      return Object.keys(out).some((k) => ['windows', 'macArm', 'macIntel', 'linux'].includes(k)) ? out : null;
+    }
+  };
+}
+
 /** {version, size, versions} written by "Build Installer.bat" next to the installer, or null. */
 function installerInfo() {
   try {
@@ -45,15 +147,20 @@ function publicRoutes(router, ctx) {
   const { players, cosmetics, auth, config } = ctx;
 
   // ---------- site data ----------
-  router.get('/api/meta', (req, res) => sendJson(res, 200, {
-    ranks: Object.values(RANKS),
-    rarities: RARITIES,
-    publicUrl: config.publicUrl,
-    downloadUrl: config.downloadUrl || (fs.existsSync(INSTALLER) ? '/download/Astra-Setup.exe' : ''),
-    download: config.downloadUrl ? null : installerInfo(),
-    discordInvite: /^https:\/\/(discord\.gg|discord\.com\/invite)\//.test(config.discordInvite || '') ? config.discordInvite : '',
-    discordClientId: /^\d{15,25}$/.test(String(config.discordClientId || '')) ? String(config.discordClientId) : ''
-  }));
+  const downloads = createDownloads(config, ctx.fetch || globalThis.fetch);
+  router.get('/api/meta', async (req, res) => {
+    const all = config.downloadUrl ? null : await downloads.current();
+    sendJson(res, 200, {
+      ranks: Object.values(RANKS),
+      rarities: RARITIES,
+      publicUrl: config.publicUrl,
+      downloadUrl: config.downloadUrl || (all && all.windows) || '',
+      download: config.downloadUrl ? null : installerInfo(),
+      downloads: all,
+      discordInvite: /^https:\/\/(discord\.gg|discord\.com\/invite)\//.test(config.discordInvite || '') ? config.discordInvite : '',
+      discordClientId: /^\d{15,25}$/.test(String(config.discordClientId || '')) ? String(config.discordClientId) : ''
+    });
+  });
 
   /** The in-game radio's stations: config.radioStations, or the built-in list. */
   router.get('/api/radio', (req, res) => {
@@ -196,6 +303,23 @@ function publicRoutes(router, ctx) {
     if (!serveFile(res, path.dirname(INSTALLER), path.basename(INSTALLER), req)) {
       throw new HttpError(404, 'The installer hasn\'t been built yet. Run "Build Installer.bat" on the server PC.');
     }
+  });
+  // The current Astra builds, for launchers (see clientMods).
+  router.get('/api/client/mods', (req, res) => sendJson(res, 200, { mods: clientMods() }));
+  router.get('/api/client/mods/:version/astra.jar', (req, res) => {
+    const v = req.params.version;
+    if (!/^\d+(\.\d+){1,2}$/.test(v) || !serveFile(res, path.join(MODS_DIR, v), 'astra.jar', req)) {
+      throw new HttpError(404, 'No Astra build for that version on this server.');
+    }
+  });
+
+  // The macOS and Linux launchers, when they're placed in server/downloads.
+  router.get('/download/:file', (req, res) => {
+    const name = req.params.file;
+    const allowed = Object.entries(LOCAL_DOWNLOADS).filter(([k]) => k !== 'windows').flatMap(([, n]) => n);
+    if (!allowed.includes(name)) throw new HttpError(404, 'No such download.');
+    res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
+    if (!serveFile(res, DOWNLOADS_DIR, name, req)) throw new HttpError(404, 'That download isn\'t on this server.');
   });
   router.get('/favicon.ico', page('assets/img/favicon.svg'));
   router.get('/healthz', (req, res) => sendJson(res, 200, { ok: true, server: 'astra', id: config.instanceId }));

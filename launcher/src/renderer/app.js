@@ -831,7 +831,58 @@ astra.onAccountChanged((account) => {
   }
 });
 
+// ---------------------------------------------------------------- updates
+
+function renderUpdate(u) {
+  const bar = $('update-bar');
+  const text = $('update-text');
+  const action = $('update-action');
+  const line = $('update-status');
+  const s = (u && u.state) || 'idle';
+  bar.hidden = !['downloading', 'ready', 'available'].includes(s);
+  action.hidden = true;
+  if (s === 'downloading') {
+    text.textContent = `Downloading Astra ${u.version}${u.percent ? ` · ${u.percent}%` : ''}`;
+  } else if (s === 'ready') {
+    text.textContent = `Astra ${u.version} is ready`;
+    action.textContent = 'Restart to update';
+    action.hidden = false;
+  } else if (s === 'available') {
+    text.textContent = `Astra ${u.version} is out`;
+    action.textContent = 'Download';
+    action.hidden = false;
+  }
+  line.textContent = {
+    dev: 'Updates are off while running from the project folder.',
+    checking: 'Checking for updates…',
+    none: 'You have the newest version.',
+    downloading: `Downloading ${u.version}…`,
+    ready: `Version ${u.version} installs when you restart the app.`,
+    available: `Version ${u.version} is out.`,
+    error: (u && u.error) || 'Couldn\'t check for updates.'
+  }[s] || '';
+  $('update-check').disabled = ['checking', 'downloading', 'dev'].includes(s);
+}
+
+async function initUpdates() {
+  if (!astra.updates) return;
+  astra.updates.onStatus(renderUpdate);
+  const res = await astra.updates.status();
+  if (res.ok) renderUpdate(res.value);
+  $('update-action').addEventListener('click', async () => {
+    const r = await astra.updates.install();
+    if (!r.ok) toast(r.error);
+  });
+  $('update-check').addEventListener('click', async () => {
+    renderUpdate({ state: 'checking' });
+    const r = await astra.updates.check();
+    if (r.ok) renderUpdate(r.value);
+  });
+}
+
 (async function init() {
+  if (astra.platform) document.documentElement.classList.add(`platform-${astra.platform}`);
+  initUpdates();
   const [info, settings, account] = await Promise.all([astra.info(), astra.settings(), astra.account()]);
 
   if (info.ok) {

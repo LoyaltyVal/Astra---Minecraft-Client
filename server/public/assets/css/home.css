@@ -216,3 +216,22 @@ section.band { padding-block: 104px; }
 
 .chips { list-style: none; margin: 22px 0 0; padding: 0; display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; }
 .chips li { font-size: 14px; padding: 7px 14px; border-radius: 999px; background: rgba(155,123,255,.1); border: 1px solid rgba(155,123,255,.25); }
+
+/* platform cards in the download section */
+.platforms { margin: 34px auto 0; max-width: 860px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; text-align: left; }
+.platform { display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: 14px; border: 1px solid var(--line); background: rgba(21, 20, 42, .7); }
+.platform.is-yours { border-color: rgba(155, 123, 255, .55); box-shadow: 0 0 0 1px rgba(155, 123, 255, .2), 0 10px 30px -18px var(--glow); }
+.platform.is-soon { opacity: .6; }
+.platform-head { display: flex; align-items: center; gap: 10px; }
+.platform-head b { display: block; font-family: var(--font-display); font-size: 17px; line-height: 1.2; }
+.platform-head small { display: block; color: var(--dust); font-size: 12.5px; }
+.platform-icon { flex: none; width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; background: var(--surface-2); }
+.platform-icon svg { width: 18px; height: 18px; fill: var(--star); }
+.platform-you { margin-left: auto; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--violet); white-space: nowrap; }
+.platform-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.platform-btn { flex: 1 1 auto; justify-content: center; background: var(--surface-2); border: 1px solid var(--line); color: var(--star); }
+.platform-btn:hover { border-color: var(--violet); }
+.platform.is-yours .platform-btn { background: var(--violet-deep); border-color: transparent; }
+.platform-soon { font-size: 13px; color: var(--dust); padding: 6px 0; }
+.platform-tip { margin: 0 !important; font-size: 12.5px; color: var(--dust); line-height: 1.45; }
+@media (max-width: 760px) { .platforms { grid-template-columns: 1fr; } }

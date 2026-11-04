@@ -82,17 +82,65 @@ function newestFile(dir) {
 }
 
 /** Copies the Astra jar into instances/<mc>/mods/astra.jar, replacing any older Astra jar. */
-function installMod(gameVersion, log) {
+/**
+ * The newest Astra build for a version from the Astra server (the host puts it there every time
+ * they build), downloaded once into .astra/client-mods and checked by sha1. This is how players get
+ * client fixes without installing a new launcher. Returns null when the server has none or can't
+ * be reached (the copy bundled with the launcher is used then).
+ */
+async function serverModJar(gameVersion, log) {
+  let base;
+  try {
+    base = require('./astraServer').serverUrl();
+  } catch {
+    return null;
+  }
+  if (!/^https?:\/\//.test(base || '')) return null;
+  let entry;
+  try {
+    const res = await fetch(`${base}/api/client/mods`, { signal: AbortSignal.timeout(4000), headers: { 'User-Agent': 'AstraLauncher' } });
+    if (!res.ok) return null;
+    entry = ((await res.json()).mods || {})[gameVersion];
+  } catch {
+    return null;
+  }
+  if (!entry || !/^[0-9a-f]{40}$/.test(String(entry.sha1))) return null;
+  const dest = path.join(paths.root(), 'client-mods', gameVersion, `astra-${entry.sha1}.jar`);
+  try {
+    await downloadFile(`${base}/api/client/mods/${encodeURIComponent(gameVersion)}/astra.jar`, dest, entry.sha1);
+  } catch (e) {
+    log(`[Astra] Couldn't download the newest Astra from the server (${e.message}); using the one in the app.`);
+    return null;
+  }
+  // Keep only this build and the one before it.
+  try {
+    const dir = path.dirname(dest);
+    const old = fs.readdirSync(dir).filter((n) => n !== path.basename(dest))
+      .map((n) => ({ n, t: fs.statSync(path.join(dir, n)).mtimeMs })).sort((a, b) => b.t - a.t).slice(1);
+    for (const o of old) fs.rmSync(path.join(dir, o.n), { force: true });
+  } catch {
+    // tidy-up only
+  }
+  return dest;
+}
+
+/**
+ * Puts the Astra jar for a version into the instance's mods folder: the newest build from the
+ * Astra server when there is one (installed launchers), else the copy in the app (or, from the
+ * project folder, the fresh Gradle build).
+ */
+async function installMod(gameVersion, log) {
   const { app } = require('electron');
-  const source = findModJar(gameVersion, {
+  const fromServer = app.isPackaged ? await serverModJar(gameVersion, log) : null;
+  const source = fromServer || findModJar(gameVersion, {
     packaged: app.isPackaged,
     bundledDir: paths.bundledModsDir(),
     gradleDir: paths.gradleProjectDir()
   });
   if (!source) {
-    throw new Error(
-      `Astra for ${gameVersion} isn't built yet. Run "gradlew build" in the project folder, then launch again.`
-    );
+    throw new Error(app.isPackaged
+      ? `Astra for ${gameVersion} isn't available on this server yet. Pick another version, or try again later.`
+      : `Astra for ${gameVersion} isn't built yet. Run "gradlew build" in the project folder, then launch again.`);
   }
 
   // In development, refuse to launch an old build: code changes only take effect after a rebuild.
@@ -119,8 +167,17 @@ function installMod(gameVersion, log) {
     }
   }
 
-  fs.copyFileSync(source, path.join(modsDir, MOD_FILE));
-  log(`[Astra] Installed ${path.basename(source)} into ${modsDir}`);
+  // Not copyFile: that keeps the source's permissions, and the jar inside a Linux AppImage (or a
+  // read-only install) is read-only, so the next launch couldn't replace it (EACCES).
+  const target = path.join(modsDir, MOD_FILE);
+  try {
+    fs.chmodSync(target, 0o644);
+  } catch {
+    // not there yet
+  }
+  fs.rmSync(target, { force: true });
+  fs.writeFileSync(target, fs.readFileSync(source), { mode: 0o644 });
+  log(`[Astra] Installed ${fromServer ? 'the newest Astra from the server' : path.basename(source)} into ${modsDir}`);
 }
 
 const FABRIC_API_FILE = 'fabric-api.jar';

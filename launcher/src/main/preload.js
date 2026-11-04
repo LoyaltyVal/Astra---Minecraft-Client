@@ -3,6 +3,14 @@ const { contextBridge, ipcRenderer } = require('electron');
 /** The only API the launcher page can use. Each call resolves to { ok, value } or { ok: false, error }. */
 contextBridge.exposeInMainWorld('astra', {
   info: () => ipcRenderer.invoke('app:info'),
+  platform: process.platform,
+
+  updates: {
+    status: () => ipcRenderer.invoke('update:status'),
+    check: () => ipcRenderer.invoke('update:check'),
+    install: () => ipcRenderer.invoke('update:install'),
+    onStatus: (fn) => ipcRenderer.on('update:status', (_e, status) => fn(status))
+  },
 
   account: () => ipcRenderer.invoke('auth:get'),
   login: () => ipcRenderer.invoke('auth:login'),

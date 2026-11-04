@@ -56,6 +56,10 @@ async function launchGame(versionId, ui) {
 
   const settings = store.set({ lastVersion: versionId });
   ui.state('preparing');
+  // Each step is written to the launcher log, so a launch that fails before Minecraft starts
+  // still says where it stopped.
+  const step = (label) => ui.log(`[Astra] ${version.id}: ${label}`);
+  step('signing in');
 
   ui.progress({ label: 'Signing in', current: 0, total: 1 });
   // A Minecraft token with a few hours left, so joining servers keeps working through a long session.
@@ -64,14 +68,18 @@ async function launchGame(versionId, ui) {
   // Mojang says which Java each version needs (8 for 1.7-1.16, 17 for 1.18, 21 for 1.20.5+, ...).
   // The Java path in Settings is a Java 8 override, so it's only used for versions that run on Java 8.
   const component = await javaComponentFor(version.id);
+  step(`Java runtime ${component}`);
   const customJava = component === 'jre-legacy' ? settings.javaPath : '';
   if (customJava && !fs.existsSync(customJava)) {
     throw new Error(`The Java path in Settings doesn't exist: ${customJava}`);
   }
   const javaPath = customJava || (await ensureJava(component, ui.progress));
 
+  step('installing the mod loader');
   const custom = await ensureLoader(version.id, ui.progress);
-  installMod(version.id, ui.log);
+  step('installing Astra');
+  ui.progress({ label: 'Checking for Astra updates', current: 0, total: 1 });
+  await installMod(version.id, ui.log);
   if (version.fabricApi) await ensureFabricApi(version.id, ui.progress, ui.log);
 
   // Cosmetics server + your Astra session for the game. The token is kept out of the logs.
@@ -127,6 +135,7 @@ async function launchGame(versionId, ui) {
     ui.state('closed', { code });
   });
 
+  step('starting Minecraft');
   ui.progress({ label: 'Starting Minecraft', current: 0, total: 0 });
   const proc = await client.launch({
     root: paths.root(),

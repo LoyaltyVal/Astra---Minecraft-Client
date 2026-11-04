@@ -7,6 +7,7 @@
   "devAuth": false,
   "dataDir": "data",
   "downloadUrl": "",
+  "releasesRepo": "",
   "discordInvite": "",
   "discordWebhook": "",
   "discordClientId": "",

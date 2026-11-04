@@ -7,7 +7,9 @@
     "HeldItemRendererMixin",
     "ArmorRedTintMixin",
     "NpcSpawnFixMixin",
-    "EquipmentSlotFixMixin"
+    "EquipmentSlotFixMixin",
+    "PlayerListHudMixin",
+    "TeamPacketFixMixin"
   ],
   "injectors": {
     "defaultRequire": 1

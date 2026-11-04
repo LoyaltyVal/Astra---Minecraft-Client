@@ -4,7 +4,9 @@
   "package": "dev.astra.client.mixin",
   "compatibilityLevel": "JAVA_8",
   "client": [
-    "EquipmentSlotFixMixin"
+    "EquipmentSlotFixMixin",
+    "TabListMixin",
+    "TeamPacketFixMixin"
   ],
   "injectors": {
     "defaultRequire": 1

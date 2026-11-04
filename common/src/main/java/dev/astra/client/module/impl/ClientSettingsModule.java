@@ -23,7 +23,7 @@ public final class ClientSettingsModule extends Module {
         showHudLabels = setting(new BooleanSetting("HUD Editor Labels", true));
         noHeartFlash = setting(new BooleanSetting("No Heart Flashing", true));
         centerInventory = setting(new BooleanSetting("Center Inventory", true));
-        ownNametag = setting(new BooleanSetting("Own Nametag in F5", false));
+        ownNametag = setting(new BooleanSetting("Own Nametag in F5", true));
         titleButtons = setting(new BooleanSetting("Astra Buttons on Title Screen", true));
     }
 

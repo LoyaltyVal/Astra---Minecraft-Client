@@ -104,15 +104,66 @@ public final class CosmeticsManager {
         public final int height;
         final BufferedImage image;
         Object handle;
+        /** Animated capes: every frame's picture (dropped once uploaded), handle and length. */
+        final BufferedImage[] frames;
+        final Object[] frameHandles;
+        final int[] delaysMs;
+        final int totalMs;
 
         Texture(BufferedImage image) {
             this.image = image;
             this.width = image.getWidth();
             this.height = image.getHeight();
+            this.frames = null;
+            this.frameHandles = null;
+            this.delaysMs = null;
+            this.totalMs = 0;
         }
 
+        Texture(List<BufferedImage> frames, int[] delaysMs) {
+            this.image = frames.get(0);
+            this.width = image.getWidth();
+            this.height = image.getHeight();
+            this.frames = frames.toArray(new BufferedImage[0]);
+            this.frameHandles = new Object[this.frames.length];
+            this.delaysMs = delaysMs;
+            int total = 0;
+            for (int d : delaysMs) {
+                total += Math.max(20, d);
+            }
+            this.totalMs = Math.max(1, total);
+        }
+
+        public boolean isAnimated() {
+            return frames != null;
+        }
+
+        /** The handle to draw now: the current frame of an animation (once it's uploaded), else the picture. */
         public Object getHandle() {
+            if (frames == null || handle == null) {
+                return handle;
+            }
+            long t = System.currentTimeMillis() % totalMs;
+            for (int i = 0; i < frameHandles.length; i++) {
+                t -= Math.max(20, delaysMs[i]);
+                if (t < 0) {
+                    return frameHandles[i] != null ? frameHandles[i] : handle;
+                }
+            }
             return handle;
+        }
+
+        /** Index of the next frame still waiting to be uploaded, or -1. */
+        int nextPendingFrame() {
+            if (frameHandles == null) {
+                return -1;
+            }
+            for (int i = 1; i < frameHandles.length; i++) {
+                if (frameHandles[i] == null) {
+                    return i;
+                }
+            }
+            return -1;
         }
     }
 
@@ -129,6 +180,8 @@ public final class CosmeticsManager {
 
     private final Map<String, Info> catalog = new ConcurrentHashMap<String, Info>();
     private final Map<String, PlayerInfo> players = new ConcurrentHashMap<String, PlayerInfo>();
+    /** Lower-case Minecraft name → UUID of Astra players we've looked up (1.7's tab list only has names). */
+    private final Map<String, String> uuidByName = new ConcurrentHashMap<String, String>();
     private final Map<String, Texture> textures = new ConcurrentHashMap<String, Texture>();
     private final Map<String, Boolean> loading = new ConcurrentHashMap<String, Boolean>();
     private final Map<String, String> failed = new ConcurrentHashMap<String, String>();
@@ -229,6 +282,10 @@ public final class CosmeticsManager {
             String uuid = normalize(string(me, "uuid"));
             JsonObject eq = me.getAsJsonObject("equippedIds");
             players.put(uuid, player(me, string(eq, "cape"), string(eq, "wings")));
+            String myName = string(me, "name");
+            if (myName != null) {
+                uuidByName.put(myName.toLowerCase(java.util.Locale.ROOT), uuid);
+            }
             selfUuid = uuid;
             signedIn = true;
             status = null;
@@ -341,6 +398,10 @@ public final class CosmeticsManager {
                 if (found.has(id)) {
                     JsonObject o = found.getAsJsonObject(id);
                     players.put(id, player(o, string(o, "cape"), string(o, "wings")));
+                    String name = string(o, "name");
+                    if (name != null) {
+                        uuidByName.put(name.toLowerCase(java.util.Locale.ROOT), id);
+                    }
                     if (o.has("emote") && o.get("emote").isJsonObject()) {
                         JsonObject e = o.getAsJsonObject("emote");
                         String emoteId = string(e, "id");
@@ -524,22 +585,38 @@ public final class CosmeticsManager {
             download(id);
             return null;
         }
+        // Uploading a texture takes a few milliseconds. When several Astra players come into view at
+        // once (the start of a fight), doing them all in one frame causes a hitch, so at most one is
+        // uploaded every 50 ms (animated capes: one frame at a time); the rest show up a moment later.
+        String name = "astra_cosmetic_" + id.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_]", "_");
         if (tex.handle == null) {
-            // Uploading a texture takes a few milliseconds. When several Astra players come into
-            // view at once (the start of a fight), doing them all in one frame causes a hitch, so
-            // at most one is uploaded every 50 ms; the rest show up a moment later.
-            long now = System.nanoTime();
-            if (now - lastUpload < 50_000_000L) {
+            if (!uploadAllowed()) {
                 return null;
             }
-            lastUpload = now;
-            String name = "astra_cosmetic_" + id.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_]", "_");
             tex.handle = Astra.platform().createTexture(name, tex.image);
+            if (tex.frameHandles != null) {
+                tex.frameHandles[0] = tex.handle;
+            }
+        } else {
+            int next = tex.nextPendingFrame();
+            if (next > 0 && uploadAllowed()) {
+                tex.frameHandles[next] = Astra.platform().createTexture(name + "_f" + next, tex.frames[next]);
+                tex.frames[next] = null; // the game has its own copy now
+            }
         }
         return tex;
     }
 
     private long lastUpload = System.nanoTime() - 1_000_000_000L;
+
+    private boolean uploadAllowed() {
+        long now = System.nanoTime();
+        if (now - lastUpload < 50_000_000L) {
+            return false;
+        }
+        lastUpload = now;
+        return true;
+    }
 
     public String getError(Type type, String id) {
         return id == null ? null : failed.get(id);
@@ -560,6 +637,13 @@ public final class CosmeticsManager {
                         info = catalog.get(id);
                     }
                     byte[] data = api.getBytes("/api/cosmetics/" + id + "/image");
+                    // Animated capes (GIFs, or cape strips) play their frames; everything else is a still.
+                    CosmeticImages.Animation anim = info == null || info.type == Type.CAPE
+                            ? CosmeticImages.readAnimation(data, true) : null;
+                    if (anim != null) {
+                        textures.put(id, new Texture(CosmeticImages.toCapeFrames(anim), anim.delaysMs));
+                        return;
+                    }
                     BufferedImage img = CosmeticImages.read(data);
                     Type type = info != null ? info.type
                             : CosmeticImages.isCapeTemplate(img) ? Type.CAPE : Type.WINGS;
@@ -620,7 +704,7 @@ public final class CosmeticsManager {
             return null;
         }
         Texture tex = getTexture(Type.CAPE, info.cape);
-        return tex == null ? null : tex.handle;
+        return tex == null ? null : tex.getHandle();
     }
 
     /**
@@ -637,6 +721,24 @@ public final class CosmeticsManager {
             return null;
         }
         return info.rankColor;
+    }
+
+    /** {@link #getRankColor(UUID)} by Minecraft name, for Astra players already looked up (or you). */
+    public Integer getRankColorByName(String name) {
+        if (name == null) {
+            return null;
+        }
+        String id = uuidByName.get(name.toLowerCase(java.util.Locale.ROOT));
+        UUID uuid = id == null ? null : dashedUuid(id);
+        return uuid == null ? null : getRankColor(uuid);
+    }
+
+    private static UUID dashedUuid(String id) {
+        try {
+            return UUID.fromString(id.replaceFirst("(\\w{8})(\\w{4})(\\w{4})(\\w{4})(\\w{12})", "$1-$2-$3-$4-$5"));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     /** "#ff5c7a" → 0xFF5C7A; anything else → fallback. */

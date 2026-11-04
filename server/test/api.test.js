@@ -376,3 +376,53 @@ test('radio stations are served (built-in list by default)', async () => {
   assert.ok(r.json.stations.length >= 5);
   assert.ok(r.json.stations.every((s) => /^https:\/\//.test(s.url) && s.name));
 });
+
+test('animated capes: GIF uploads are accepted and marked animated; broken GIFs are refused', async () => {
+  const { sniffImage, gifFrames, isAnimated } = require('../src/services/Cosmetics');
+  // A minimal 2-frame 1x1 GIF built by hand.
+  const frame = Buffer.from([0x2c, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0x02, 0x02, 0x44, 0x01, 0x00]);
+  const gce = Buffer.from([0x21, 0xf9, 0x04, 0x00, 0x0a, 0x00, 0x00, 0x00]);
+  const header = Buffer.concat([Buffer.from('GIF89a', 'latin1'), Buffer.from([1, 0, 1, 0, 0x80, 0, 0]), Buffer.from([0, 0, 0, 255, 255, 255])]);
+  const two = Buffer.concat([header, gce, frame, gce, frame, Buffer.from([0x3b])]);
+  const one = Buffer.concat([header, gce, frame, Buffer.from([0x3b])]);
+  assert.strictEqual(sniffImage(two), 'gif');
+  assert.strictEqual(gifFrames(two), 2);
+  assert.strictEqual(gifFrames(one), 1);
+  assert.strictEqual(isAnimated(two, 'cape'), true);
+  assert.strictEqual(isAnimated(one, 'cape'), false);
+
+  const owner = await signIn(OWNER);
+  const up = await call('POST', '/api/admin/cosmetics', { token: owner.token, body: { name: 'Pulse', type: 'cape', rarity: 'epic', image: 'data:image/gif;base64,' + two.toString('base64') } });
+  assert.strictEqual(up.status, 201, JSON.stringify(up.json));
+  const list = await call('GET', '/api/cosmetics?type=cape');
+  const pulse = list.json.cosmetics.find((c) => c.name === 'Pulse');
+  assert.strictEqual(pulse.animated, true);
+  const img = await fetch(base + pulse.image);
+  assert.strictEqual(img.headers.get('content-type'), 'image/gif');
+
+  const broken = await call('POST', '/api/admin/cosmetics', { token: owner.token, body: { name: 'Bad', type: 'cape', image: 'data:image/gif;base64,' + Buffer.from('GIF89a\x01\x00\x01\x00\x00\x00\x00junk', 'latin1').toString('base64') } });
+  assert.strictEqual(broken.status, 400);
+});
+
+test('launchers get the current Astra build from the server, checked by sha1', async () => {
+  const dir = path.join(ROOT, 'downloads', 'mods', '1.7.10');
+  const existed = fs.existsSync(path.join(dir, 'astra.jar'));
+  if (!existed) {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'astra.jar'), 'PK test jar');
+  }
+  try {
+    const list = await call('GET', '/api/client/mods');
+    const entry = list.json.mods['1.7.10'];
+    assert.ok(entry && /^[0-9a-f]{40}$/.test(entry.sha1));
+    const jar = await fetch(base + '/api/client/mods/1.7.10/astra.jar');
+    assert.strictEqual(jar.status, 200);
+    const body = Buffer.from(await jar.arrayBuffer());
+    assert.strictEqual(require('crypto').createHash('sha1').update(body).digest('hex'), entry.sha1);
+    assert.strictEqual((await fetch(base + '/api/client/mods/9.9.9/astra.jar')).status, 404);
+    assert.strictEqual((await fetch(base + '/api/client/mods/..%2F..%2Fconfig/astra.jar')).status, 404);
+  } finally {
+    if (!existed) fs.rmSync(path.join(ROOT, 'downloads', 'mods', '1.7.10'), { recursive: true, force: true });
+    try { fs.rmdirSync(path.join(ROOT, 'downloads', 'mods')); } catch { /* not empty or already gone */ }
+  }
+});

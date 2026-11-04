@@ -4,6 +4,8 @@ import { api } from './api.js';
 const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5l2.6 7.9 7.9 2.6-7.9 2.6L12 22.5l-2.6-7.9L1.5 12l7.9-2.6z"/></svg>';
 const DOWNLOAD = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-5-5m5 5l5-5M4 17v3h16v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const DISCORD = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.3 4.4A19.6 19.6 0 0 0 15.4 3l-.6 1.3a18.2 18.2 0 0 0-5.6 0L8.6 3a19.5 19.5 0 0 0-4.9 1.5C.6 9.1-.3 13.6.1 18a19.8 19.8 0 0 0 6 3l1.3-2a12.8 12.8 0 0 1-2-1l.5-.4a14 14 0 0 0 12.2 0l.5.4a12.8 12.8 0 0 1-2 1l1.3 2a19.7 19.7 0 0 0 6-3c.5-5.1-.8-9.6-3.6-13.6zM8 15.3c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4zm8 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4z"/></svg>';
+const APPLE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.4 12.6c0-2.5 2-3.6 2.1-3.7a4.6 4.6 0 0 0-3.6-2c-1.5-.2-3 .9-3.7.9-.8 0-2-.9-3.2-.8a4.8 4.8 0 0 0-4 2.4c-1.7 3-.4 7.4 1.2 9.8.8 1.2 1.8 2.5 3 2.4 1.2 0 1.7-.8 3.1-.8 1.5 0 1.9.8 3.2.8 1.3 0 2.2-1.2 3-2.4a10 10 0 0 0 1.3-2.8 4.3 4.3 0 0 1-2.4-3.8zM14 5.2a4.3 4.3 0 0 0 1-3.2 4.5 4.5 0 0 0-2.9 1.5 4.1 4.1 0 0 0-1 3.1A3.7 3.7 0 0 0 14 5.2z"/></svg>';
+const LINUX = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c-2.2 0-3.6 1.9-3.6 4.6 0 1.4.3 2.3-.5 3.6C6.6 12.3 5 14.4 5 17c0 .6.1 1.1.3 1.6-.8.4-1.6 1-1.4 1.8.3 1.1 2.3.9 3.4 1.4 1 .4 2 .2 2.5-.6h4.4c.5.8 1.5 1 2.5.6 1.1-.5 3.1-.3 3.4-1.4.2-.8-.6-1.4-1.4-1.8.2-.5.3-1 .3-1.6 0-2.6-1.6-4.7-2.9-6.8-.8-1.3-.5-2.2-.5-3.6C15.6 3.9 14.2 2 12 2zm-1.6 4a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8zm3.2 0a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8zM12 8.6l1.6 1-1.6 1-1.6-1z"/></svg>';
 const WINDOWS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4.6l7.4-1v7.1H3zm8.3-1.1L21 2v8.7h-9.7zM3 11.6h7.4v7.1L3 17.7zm8.3 0H21V21l-9.7-1.4z"/></svg>';
 
 /** Creates an element: el('a', { href: '/', class: 'x' }, 'text', child). */
@@ -103,7 +105,7 @@ export function cosmeticTile(c, extra) {
   return el('article', { class: `cos ${c.type} ${c.rarity}` },
     el('div', { class: 'art' }, el('img', { src: c.image, alt: `${c.name} ${c.type === 'cape' ? 'cape' : 'wings'}`, loading: 'lazy' })),
     el('div', { class: 'cos-meta' }, el('b', {}, c.name), el('span', { class: `rarity rarity-${c.rarity}` }, c.rarity)),
-    el('small', {}, `${c.type === 'cape' ? 'Cape' : 'Wings'}${c.free ? ' · Free for everyone' : ''}`),
+    el('small', {}, `${c.type === 'cape' ? 'Cape' : 'Wings'}${c.animated ? ' · Animated' : ''}${c.free ? ' · Free for everyone' : ''}`),
     extra || null);
 }
 
@@ -208,34 +210,114 @@ export class SiteChrome {
     document.querySelectorAll('.js-discord').forEach((b) => { b.href = invite; b.hidden = false; });
   }
 
-  /** Points every .js-download link at the configured installer, or explains it's coming soon. */
+  /** Which OS this visitor is on: 'windows', 'mac' or 'linux'. */
+  static visitorOs() {
+    const p = `${(navigator.userAgentData && navigator.userAgentData.platform) || ''} ${navigator.userAgent || ''}`.toLowerCase();
+    if (p.includes('windows')) return 'windows';
+    if (p.includes('mac') && !/iphone|ipad/.test(p)) return 'mac';
+    if (p.includes('linux') && !p.includes('android')) return 'linux';
+    return 'windows';
+  }
+
+  /**
+   * Points every .js-download link at the right launcher: this visitor's OS when GitHub Releases
+   * are configured (with the other platforms listed under the button), else the Windows installer
+   * hosted here, else a "coming soon" note.
+   */
   wireDownloads() {
-    const url = this.meta && this.meta.downloadUrl;
-    const info = this.meta && this.meta.download;
-    if (url && info) {
-      // "Astra 1.0.0 · 92 MB · Windows 10 & 11, 64-bit"
+    const meta = this.meta || {};
+    const all = meta.downloads;
+    const byOs = all ? { windows: all.windows, mac: all.macArm || all.macIntel, linux: all.linux } : {};
+    const want = SiteChrome.visitorOs();
+    // The visitor's own OS when there's a build for it, else Windows.
+    const os = all && byOs[want] ? want : 'windows';
+    const url = all ? byOs[os] : meta.downloadUrl;
+    const label = { windows: 'Download for Windows', mac: 'Download for macOS', linux: 'Download for Linux' }[os];
+    const tip = {
+      windows: 'Downloading. If Windows says "Windows protected your PC", click More info, then Run anyway.',
+      mac: 'Downloading. Unzip it and drag Astra to Applications. If macOS says it can\'t check the app, open System Settings → Privacy & Security and click Open Anyway.',
+      linux: 'Downloading. Make the AppImage executable (right-click → Properties → Allow executing, or chmod +x) and open it.'
+    }[os];
+    const info = meta.download;
+    if (url && info && os === 'windows' && (!all || !Object.keys(byOs).some((k) => k !== 'windows' && byOs[k]))) {
+      // "Astra 1.0.0 · 92 MB · Windows 10 & 11, 64-bit" for the installer hosted on this server.
       const parts = [];
       if (info.version) parts.push(`Astra ${info.version}`);
       if (info.size) parts.push(`${Math.max(1, Math.round(info.size / 1048576))} MB`);
       parts.push('Windows 10 & 11, 64-bit');
       document.querySelectorAll('.js-download-note').forEach((p) => { p.textContent = parts.join(' · '); });
     }
+    if (all && !document.querySelector('[data-platforms]')) {
+      // The other platforms that have a build, under the main button (pages without the cards).
+      const links = [
+        os !== 'windows' && all.windows && el('a', { href: all.windows }, 'Windows'),
+        os !== 'mac' && all.macArm && el('a', { href: all.macArm }, 'macOS (Apple Silicon)'),
+        all.macIntel && (os !== 'mac' || all.macArm) && el('a', { href: all.macIntel }, os === 'mac' ? 'Intel Mac' : 'macOS (Intel)'),
+        os !== 'linux' && all.linux && el('a', { href: all.linux }, 'Linux'),
+        all.page && el('a', { href: all.page, rel: 'noopener' }, 'All releases')
+      ].filter(Boolean);
+      const missing = want !== os ? ` (${{ mac: 'macOS', linux: 'Linux' }[want]} coming soon)` : '';
+      if (links.length || missing) {
+        document.querySelectorAll('.js-download-note').forEach((p) => {
+          p.replaceChildren(...(links.length ? ['Also for ', ...links.flatMap((a, i) => (i ? [' · ', a] : [a]))] : []), missing);
+        });
+      }
+    }
+    this.renderPlatforms(all, meta, want);
     document.querySelectorAll('.js-download').forEach((a) => {
       if (url) {
         a.href = url;
         a.rel = 'noopener';
-        a.setAttribute('download', '');
-        // Astra isn't code-signed yet, so Windows warns the first time it's run.
-        a.addEventListener('click', () => {
-          Toast.show('Downloading. If Windows says "Windows protected your PC", click More info, then Run anyway.');
-        });
+        if (url.startsWith('/')) a.setAttribute('download', '');
+        if (os !== 'windows' && !a.classList.contains('nav-dl')) a.textContent = label;
+        a.addEventListener('click', () => Toast.show(tip));
       } else {
         a.addEventListener('click', (e) => {
           e.preventDefault();
-          Toast.show('The Windows download is almost ready. Check back soon.');
+          Toast.show('The download is almost ready. Check back soon.');
         });
       }
     });
+  }
+
+  /** The three platform cards in the download section: each links to its build, or says it's coming. */
+  renderPlatforms(all, meta, want) {
+    const slot = document.querySelector('[data-platforms]');
+    if (!slot) return;
+    // The cards say what each build needs, so the line under the big button isn't needed.
+    document.querySelectorAll('.js-download-note').forEach((p) => { p.hidden = true; });
+    const d = all || { windows: meta.downloadUrl };
+    const cards = [
+      { os: 'windows', icon: WINDOWS, name: 'Windows', req: 'Windows 10 & 11', links: [[d.windows, 'Download installer']],
+        tip: 'If SmartScreen appears: More info → Run anyway.' },
+      { os: 'mac', icon: APPLE, name: 'macOS', req: 'macOS 11+',
+        links: [[d.macArm, 'Apple Silicon'], [d.macIntel, 'Intel']],
+        tip: 'Unzip, drag Astra to Applications. If macOS blocks it: System Settings → Privacy & Security → Open Anyway.' },
+      { os: 'linux', icon: LINUX, name: 'Linux', req: '64-bit AppImage', links: [[d.linux, 'Download AppImage']],
+        tip: 'chmod +x Astra-Launcher.AppImage, then run it.' }
+    ];
+    slot.replaceChildren(...cards.map((c) => {
+      const ready = c.links.filter(([href]) => href);
+      const card = el('div', { class: `platform${c.os === want ? ' is-yours' : ''}${ready.length ? '' : ' is-soon'}` });
+      const head = el('div', { class: 'platform-head' });
+      const icon = el('span', { class: 'platform-icon' });
+      icon.innerHTML = c.icon;
+      head.append(icon, el('div', {}, el('b', {}, c.name), el('small', {}, c.req)));
+      if (c.os === want) head.append(el('span', { class: 'platform-you' }, 'Your system'));
+      const actions = el('div', { class: 'platform-actions' });
+      if (ready.length) {
+        for (const [href, text] of ready) {
+          const a = el('a', { class: 'btn btn-sm platform-btn', href, rel: 'noopener' }, text);
+          if (href.startsWith('/')) a.setAttribute('download', '');
+          a.addEventListener('click', () => Toast.show(c.tip));
+          actions.append(a);
+        }
+      } else {
+        actions.append(el('span', { class: 'platform-soon' }, 'Coming soon'));
+      }
+      card.append(head, actions, el('p', { class: 'platform-tip' }, ready.length ? c.tip : 'Not built yet. Check back soon.'));
+      return card;
+    }));
   }
 }
 

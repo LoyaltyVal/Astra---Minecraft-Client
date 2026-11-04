@@ -166,7 +166,7 @@ class CosmeticsPanel {
   }
 
   uploadForm() {
-    const file = el('input', { type: 'file', accept: 'image/png,image/jpeg', required: true });
+    const file = el('input', { type: 'file', accept: 'image/png,image/jpeg,image/gif', required: true });
     const preview = el('div', { class: 'upreview' }, el('span', { class: 'muted small' }, 'Preview'));
     const name = el('input', { required: true, maxlength: 40, placeholder: 'Galaxy' });
     const type = el('select', {}, el('option', { value: 'cape' }, 'Cape'), el('option', { value: 'wings' }, 'Wings (one wing image)'));
@@ -202,7 +202,7 @@ class CosmeticsPanel {
       el('p', { class: 'muted small' }, 'Capes: any picture, it\'s fitted to the cape. Wings: a single wing on a plain background; Astra mirrors it into a pair and removes the background.')),
     el('div', { class: 'up-body' }, preview,
       el('div', { class: 'up-fields' },
-        el('label', { class: 'field' }, 'Image (PNG or JPEG, up to 4 MB)', file),
+        el('label', { class: 'field' }, 'Image (PNG, JPEG or GIF, up to 4 MB). Animated GIFs play in game as animated capes.', file),
         el('label', { class: 'field' }, 'Name', name),
         el('div', { class: 'row' }, el('label', { class: 'field' }, 'Type', type), el('label', { class: 'field' }, 'Rarity', rarity)),
         el('label', { class: 'check' }, free, 'Free for every player'),

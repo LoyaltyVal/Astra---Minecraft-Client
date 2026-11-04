@@ -15,17 +15,66 @@ const MAX_APPROVED = 10;  // approved uploads a player can keep
 /** Uploads waiting for review (or rejected) can't be worn or listed. */
 const live = (c) => !c.status || c.status === 'approved';
 
-/** Detects PNG/JPEG from the file's first bytes (never trust the extension). */
+/** Detects PNG/JPEG/GIF from the file's first bytes (never trust the extension). */
 function sniffImage(buf) {
   if (buf.length > 8 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return 'png';
   if (buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpg';
+  if (buf.length > 13 && buf.toString('latin1', 0, 6).match(/^GIF8[79]a$/)) return 'gif';
   return null;
 }
 
-/** Reads width/height from a PNG header (JPEGs report null; the client handles any size). */
+/** Width/height from a PNG or GIF header (JPEGs report null; the client handles any size). */
 function pngSize(buf) {
-  if (sniffImage(buf) !== 'png' || buf.length < 24) return null;
-  return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+  const kind = sniffImage(buf);
+  if (kind === 'png' && buf.length >= 24) return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+  if (kind === 'gif') return { width: buf.readUInt16LE(6), height: buf.readUInt16LE(8) };
+  return null;
+}
+
+/**
+ * Counts the frames in a GIF by walking its blocks (stops at 2: all we need is "animated or not").
+ * Returns 0 for a broken file.
+ */
+function gifFrames(buf) {
+  try {
+    let p = 13;
+    const flags = buf[10];
+    if (flags & 0x80) p += 3 * (1 << ((flags & 7) + 1)); // global colour table
+    let frames = 0;
+    const skipSubBlocks = () => {
+      while (p < buf.length && buf[p] !== 0) p += buf[p] + 1;
+      p += 1;
+    };
+    while (p < buf.length) {
+      const b = buf[p];
+      if (b === 0x3b) break; // trailer
+      if (b === 0x21) { p += 2; skipSubBlocks(); continue; } // extension
+      if (b !== 0x2c) return 0;
+      frames += 1;
+      if (frames >= 2) return frames;
+      const lflags = buf[p + 9];
+      p += 10;
+      if (lflags & 0x80) p += 3 * (1 << ((lflags & 7) + 1)); // local colour table
+      p += 1; // LZW minimum code size
+      skipSubBlocks();
+    }
+    return frames;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Whether a cape image plays as an animation in game: an animated GIF, or a "strip" PNG of
+ * several 2:1 cape templates stacked top to bottom.
+ */
+function isAnimated(buf, type) {
+  const kind = sniffImage(buf);
+  if (kind === 'gif') return gifFrames(buf) >= 2;
+  const size = pngSize(buf);
+  if (type !== 'cape' || kind !== 'png' || !size) return false;
+  const frameH = size.width / 2;
+  return size.width % 64 === 0 && size.height % frameH === 0 && size.height / frameH >= 2;
 }
 
 /**
@@ -63,6 +112,7 @@ class CosmeticService {
       free: Boolean(c.free),
       hidden: Boolean(c.hidden),
       image: `/api/cosmetics/${c.id}/image`,
+      animated: Boolean(c.animated),
       owners: this.ownerCount(c),
       uploadedBy: c.uploadedBy || null,
       createdAt: c.createdAt
@@ -167,7 +217,7 @@ class CosmeticService {
     return path.join(this.dir, c.file);
   }
 
-  /** Validates and stores a new cosmetic. `image` is a Buffer of a PNG or JPEG. */
+  /** Validates and stores a new cosmetic. `image` is a Buffer of a PNG, JPEG or GIF. */
   create({ name, type, rarity = 'common', free = false, image, createdBy = null }) {
     name = String(name || '').trim().slice(0, 40);
     if (!name) throw new Error('Give the cosmetic a name.');
@@ -176,14 +226,15 @@ class CosmeticService {
     if (!Buffer.isBuffer(image) || !image.length) throw new Error('Choose an image.');
     if (image.length > MAX_IMAGE_BYTES) throw new Error('Images must be 4 MB or smaller.');
     const ext = sniffImage(image);
-    if (!ext) throw new Error('Images must be PNG or JPEG.');
+    if (!ext) throw new Error('Images must be PNG, JPEG or GIF.');
+    if (ext === 'gif' && !gifFrames(image)) throw new Error('That GIF looks broken. Try saving it again.');
 
     const id = crypto.randomBytes(5).toString('hex');
     const file = `${id}.${ext}`;
     fs.writeFileSync(path.join(this.dir, file), image);
     const c = {
       id, name, type, rarity, free: Boolean(free), hidden: false, file,
-      size: pngSize(image), createdBy, createdAt: new Date().toISOString()
+      size: pngSize(image), animated: isAnimated(image, type), createdBy, createdAt: new Date().toISOString()
     };
     this.store.cosmetics[id] = c;
     this.store.save();
@@ -263,4 +314,4 @@ class CosmeticService {
   }
 }
 
-module.exports = { CosmeticService, TYPES, RARITIES, sniffImage, MAX_PENDING, MAX_APPROVED };
+module.exports = { CosmeticService, TYPES, RARITIES, sniffImage, gifFrames, isAnimated, MAX_PENDING, MAX_APPROVED };

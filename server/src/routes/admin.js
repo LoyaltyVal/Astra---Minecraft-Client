@@ -102,8 +102,8 @@ function adminRoutes(router, ctx) {
   /** Upload: JSON with the image as a data: URL (keeps the server free of multipart parsing). */
   router.post('/api/admin/cosmetics', requirePermission(ctx, 'cosmetics.manage'), async (req, res) => {
     const body = await readJson(req, 6 * 1024 * 1024);
-    const m = /^data:image\/(png|jpe?g);base64,([A-Za-z0-9+/=]+)$/.exec(String(body.image || ''));
-    if (!m) throw new HttpError(400, 'Choose a PNG or JPEG image.');
+    const m = /^data:image\/(png|jpe?g|gif);base64,([A-Za-z0-9+/=]+)$/.exec(String(body.image || ''));
+    if (!m) throw new HttpError(400, 'Choose a PNG, JPEG or GIF image.');
     let c;
     try {
       c = cosmetics.create({ ...body, image: Buffer.from(m[2], 'base64'), createdBy: req.player.uuid });

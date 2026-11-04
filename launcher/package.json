@@ -1,8 +1,8 @@
 {
   "name": "astra-launcher",
   "productName": "Astra Launcher",
-  "version": "1.0.0",
-  "description": "Launcher for Astra Client (Minecraft 1.8.9 and 1.7.10).",
+  "version": "1.0.1",
+  "description": "Launcher for Astra Client.",
   "main": "src/main/main.js",
   "author": "ramiz",
   "license": "UNLICENSED",
@@ -10,46 +10,23 @@
   "scripts": {
     "start": "electron .",
     "mods": "node scripts/copy-mods.js",
-    "dist": "node scripts/copy-mods.js && electron-builder --win"
+    "dist": "node scripts/copy-mods.js && electron-builder --win --config electron-builder.config.js --publish never",
+    "dist:mac": "node scripts/copy-mods.js && electron-builder --mac --config electron-builder.config.js --publish never",
+    "dist:linux": "node scripts/copy-mods.js && electron-builder --linux --config electron-builder.config.js --publish never",
+    "release": "node scripts/copy-mods.js && electron-builder --config electron-builder.config.js --publish always"
   },
   "dependencies": {
     "minecraft-launcher-core": "^3.17.0",
-    "msmc": "^5.0.5"
+    "msmc": "^5.0.5",
+    "electron-updater": "^6.3.9"
   },
   "devDependencies": {
     "electron": "^33.2.1",
     "electron-builder": "^25.1.8"
   },
-  "build": {
-    "appId": "dev.astra.launcher",
-    "productName": "Astra Launcher",
-    "directories": {
-      "output": "dist",
-      "buildResources": "build"
-    },
-    "files": [
-      "src/**/*",
-      "build/icon.*",
-      "package.json",
-      "build-config.json"
-    ],
-    "extraResources": [
-      {
-        "from": "mods",
-        "to": "mods"
-      }
-    ],
-    "win": {
-      "target": "nsis",
-      "icon": "build/icon.ico",
-      "signAndEditExecutable": false
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "shortcutName": "Astra Launcher",
-      "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico"
-    }
-  }
+  "astraUpdates": {
+    "owner": "LoyaltyVal",
+    "repo": "Astra---Minecraft-Client"
+  },
+  "homepage": "https://github.com/LoyaltyVal/Astra---Minecraft-Client"
 }
