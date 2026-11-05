@@ -124,6 +124,7 @@ public final class Astra implements ClientModInitializer {
         }
         lastUi = ui;
 
+        dev.astra.client.replay.Replay.get().tick();
         cosmetics.tick();
         social.tick();
         dev.astra.client.features.Accounts.get().tick();
@@ -159,7 +160,8 @@ public final class Astra implements ClientModInitializer {
 
     /** Remembers multiplayer servers you join, for Quick Join's "Recent" list. */
     private void trackServer() {
-        String server = platform.isInGame() ? platform.getServerAddress() : null;
+        String server = platform.isInGame() && !dev.astra.client.replay.Replay.get().isPlaying()
+                ? platform.getServerAddress() : null;
         if (server != null && !server.equals(lastServer) && !"singleplayer".equals(server)) {
             try {
                 dev.astra.client.features.Servers.get().played(server);
@@ -201,6 +203,8 @@ public final class Astra implements ClientModInitializer {
                     }
                 }
             }
+            int[] size = getScaledResolution();
+            dev.astra.client.replay.Replay.get().renderHud(size[0], size[1]);
             platform.color(1f, 1f, 1f, 1f);
         }
 
@@ -253,16 +257,17 @@ public final class Astra implements ClientModInitializer {
         return f != null && f.isLooking() ? f : null;
     }
 
-    /** True while Astra draws the sidebar itself (vanilla's is skipped). */
+    /**
+     * Vanilla's sidebar is always skipped: Astra's Scoreboard mod draws it, so "Hide from HUD"
+     * really hides it and "Add to HUD" brings it back (it used to fall back to vanilla's).
+     */
     public boolean hidesVanillaScoreboard() {
-        ScoreboardModule m = modules.get(ScoreboardModule.class);
-        return m != null && m.isEnabled();
+        return modules.get(ScoreboardModule.class) != null;
     }
 
-    /** True while Astra draws the boss bar itself (vanilla's is skipped). */
+    /** Same for the boss bar: Astra's Boss Bar mod draws it, or nothing does. */
     public boolean hidesVanillaBossBar() {
-        BossBarModule m = modules.get(BossBarModule.class);
-        return m != null && m.isEnabled();
+        return modules.get(BossBarModule.class) != null;
     }
 
     private void report(Module module, Throwable t) {

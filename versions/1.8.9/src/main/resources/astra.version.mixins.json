@@ -4,6 +4,7 @@
   "package": "dev.astra.client.mixin",
   "compatibilityLevel": "JAVA_8",
   "client": [
+    "ClientConnectionMixin",
     "MultiplayerScreenMixin",
     "HeldItemRendererMixin",
     "ArmorRedTintMixin",

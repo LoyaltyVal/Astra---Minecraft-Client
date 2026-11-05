@@ -93,9 +93,9 @@ public final class TitleMenu {
     }
 
     private static final String[][] ICONS = {
-            null, Icons.SHIRT, Icons.CHAT, Icons.CAMERA, Icons.GEAR, Icons.GLOBE, Icons.POWER};
+            null, Icons.SHIRT, Icons.CHAT, Icons.CAMERA, Icons.FILM, Icons.GEAR, Icons.GLOBE, Icons.POWER};
     private static final String[] ICON_NAMES = {
-            "Astra Menu", "Cosmetics", "Friends", "Screenshots", "Options", "Language", "Quit Game"};
+            "Astra Menu", "Cosmetics", "Friends", "Screenshots", "Replays", "Options", "Language", "Quit Game"};
 
     private static String sessionName() {
         String n = Astra.platform().getSessionName();
@@ -343,9 +343,12 @@ public final class TitleMenu {
                     Astra.platform().openUi(new ScreenshotsScreen());
                     break;
                 case 4:
-                    game.options();
+                    Astra.platform().openUi(new dev.astra.client.replay.ReplaysScreen());
                     break;
                 case 5:
+                    game.options();
+                    break;
+                case 6:
                     game.language();
                     break;
                 default:

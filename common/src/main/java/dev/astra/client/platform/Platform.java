@@ -17,6 +17,11 @@ public interface Platform {
 
     String minecraftVersion();
 
+    /** This version's replay recorder and player, or null where replays aren't supported yet. */
+    default dev.astra.client.replay.ReplayBackend replay() {
+        return null;
+    }
+
     /** True when a world is loaded and the player exists. */
     boolean isInGame();
 

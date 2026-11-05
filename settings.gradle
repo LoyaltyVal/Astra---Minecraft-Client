@@ -20,5 +20,15 @@ pluginManagement {
 rootProject.name = "astra-client"
 
 // One subproject per Minecraft version. They all share the code in /common.
-include "versions:1.8.9"
-include "versions:1.7.10"
+// A version whose gradle.properties says astra_experimental=true is only built when
+// astra_experimental_versions=true (gradle.properties, or -Pastra_experimental_versions=true), so a
+// version still being ported can never break the build of the ones players use.
+def experimentalOn = providers.gradleProperty("astra_experimental_versions").getOrElse("false") == "true"
+file("versions").listFiles().findAll { it.isDirectory() && new File(it, "build.gradle").exists() }.sort().each { dir ->
+    def props = new Properties()
+    def propsFile = new File(dir, "gradle.properties")
+    if (propsFile.exists()) propsFile.withInputStream { props.load(it) }
+    if (props.getProperty("astra_experimental") != "true" || experimentalOn) {
+        include "versions:${dir.name}"
+    }
+}

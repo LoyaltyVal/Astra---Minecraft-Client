@@ -39,6 +39,14 @@ import java.util.Map;
  */
 public final class PlatformImpl extends dev.astra.client.platform.legacy.LegacyPlatform {
 
+    private final ReplayBackendImpl replay = new ReplayBackendImpl();
+
+    @Override
+    public dev.astra.client.replay.ReplayBackend replay() {
+        return replay;
+    }
+
+
     private static final Identifier INVENTORY = new Identifier("textures/gui/container/inventory.png");
 
     private final DrawableHelper drawer = new DrawableHelper();

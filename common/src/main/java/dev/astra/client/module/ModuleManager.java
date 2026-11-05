@@ -8,6 +8,7 @@ import dev.astra.client.module.impl.EmotesModule;
 import dev.astra.client.module.impl.AutoGGModule;
 import dev.astra.client.module.impl.WaypointsModule;
 import dev.astra.client.module.impl.ScreenshotsModule;
+import dev.astra.client.module.impl.ReplayModule;
 import dev.astra.client.module.impl.BorderlessModule;
 import dev.astra.client.module.impl.ChatModule;
 import dev.astra.client.module.impl.FreelookModule;
@@ -78,6 +79,7 @@ public final class ModuleManager {
         register(new AutoGGModule());
         register(new WaypointsModule());
         register(new ScreenshotsModule());
+        register(new ReplayModule());
         register(new PerformanceModule());
         register(new BorderlessModule());
         register(new MenuBackgroundModule());

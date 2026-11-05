@@ -29,7 +29,14 @@ const missing = [];
 for (const mc of versions) {
   const jar = path.join(projectDir, 'versions', mc, 'build', 'libs', `astra-${modVersion}+${mc}.jar`);
   if (!fs.existsSync(jar)) {
-    missing.push(mc);
+    // Versions still being ported are only built on request (astra_experimental_versions=true).
+    const props = path.join(projectDir, 'versions', mc, 'gradle.properties');
+    const experimental = fs.existsSync(props) && /^astra_experimental=true$/m.test(fs.readFileSync(props, 'utf8'));
+    if (experimental) {
+      console.log(`- ${mc}: experimental, not built (skipped)`);
+    } else {
+      missing.push(mc);
+    }
     continue;
   }
   fs.mkdirSync(path.join(outDir, mc), { recursive: true });

@@ -2,6 +2,10 @@
 // Each version folder has its own gradle.properties with minecraft_version and yarn_build.
 
 version = "${rootProject.mod_version}+${project.minecraft_version}"
+
+// "legacy" = LWJGL 2 (1.7.10 - 1.13.2, Legacy Fabric); "modern" = LWJGL 3 / Fabric (1.14+).
+def isModern = project.findProperty("astra_platform") == "modern"
+def javaRelease = isModern ? (project.findProperty("astra_java") ?: "17").toInteger() : 8
 group = rootProject.maven_group
 
 base {
@@ -14,6 +18,8 @@ sourceSets {
     main {
         java.srcDir rootProject.file("common/src/main/java")
         resources.srcDir rootProject.file("common/src/main/resources")
+        // Mixin configs: LWJGL 2 versions share astra.mixins.json (the same mixin names on each);
+        // modern versions list all of theirs in astra.version.mixins.json.
         // LWJGL 2 versions (1.7.10 - 1.13.2) also share the fixed-function GL / Display code in /legacy.
         if (project.findProperty("astra_platform") == "legacy") {
             java.srcDir rootProject.file("legacy/src/main/java")
@@ -28,7 +34,11 @@ repositories {
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    mappings(legacy.yarn(project.minecraft_version, project.yarn_build))
+    if (isModern) {
+        mappings "net.fabricmc:yarn:${project.minecraft_version}+build.${project.yarn_build}:v2"
+    } else {
+        mappings(legacy.yarn(project.minecraft_version, project.yarn_build))
+    }
     modImplementation "net.fabricmc:fabric-loader:${rootProject.loader_version}"
 
     // MP3 decoder for the radio. "include" packs it inside Astra's jar (Fabric loads it from there).
@@ -43,19 +53,25 @@ processResources {
     inputs.property "version", project.version
     inputs.property "minecraft_version", project.minecraft_version
 
+    if (isModern) {
+        exclude "astra.mixins.json"
+    }
+    inputs.property "modern", isModern
     filesMatching("fabric.mod.json") {
-        expand "version": project.version, "minecraft_version": project.minecraft_version
+        expand "version": project.version, "minecraft_version": project.minecraft_version,
+                "mixins": isModern ? '["astra.version.mixins.json"]' : '["astra.mixins.json", "astra.version.mixins.json"]',
+                "java": javaRelease
     }
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.toVersion(javaRelease)
+    targetCompatibility = JavaVersion.toVersion(javaRelease)
 }
 
 tasks.withType(JavaCompile).configureEach {
     it.options.encoding = "UTF-8"
     if (JavaVersion.current().isJava9Compatible()) {
-        it.options.release = 8
+        it.options.release = javaRelease
     }
 }

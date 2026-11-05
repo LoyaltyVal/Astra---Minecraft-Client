@@ -1,0 +1,24 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.astra.client.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "client": [
+    "MinecraftClientMixin",
+    "MinecraftClientAccessor",
+    "KeyBindingAccessor",
+    "BossBarHudAccessor",
+    "SimpleOptionAccessor",
+    "InGameHudMixin",
+    "BossBarHudMixin",
+    "ChatHudMixin",
+    "GameRendererMixin",
+    "WorldRendererMixin",
+    "AbstractClientPlayerEntityMixin",
+    "TitleScreenMixin",
+    "MultiplayerScreenMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
