@@ -190,6 +190,7 @@ public final class ReplayBackendImpl implements ReplayBackend, Replay.ServerName
         connection.setPacketListener(handler);
         recordedId = Integer.MIN_VALUE;
         positioned = false;
+        following = null;
     }
 
     @Override
@@ -335,10 +336,36 @@ public final class ReplayBackendImpl implements ReplayBackend, Replay.ServerName
             }
         }
         MinecraftClient mc = mc();
-        Entity cam = mc.getCameraEntity();
-        if (cam != null && mc.player != null && cam != mc.player && (cam.removed || cam.world != mc.world)) {
-            mc.setCameraEntity(mc.player); // the watched player left (or the world changed)
+        if (mc.player == null || mc.world == null) {
+            return;
         }
+        Entity cam = mc.getCameraEntity();
+        boolean lost = cam == null || cam.removed || cam.world != mc.world;
+        if (following != null) {
+            // Keep watching the same player through teleports, deaths and world changes: when the
+            // world is rebuilt their entity is new, so find them again by name.
+            PlayerEntity target = findPlayer(following);
+            if (target != null && target != cam) {
+                mc.setCameraEntity(target);
+            } else if (target == null && lost) {
+                mc.setCameraEntity(mc.player); // not in this world (yet); picked up again when they are
+            }
+        } else if (cam != mc.player && lost) {
+            mc.setCameraEntity(mc.player);
+        }
+    }
+
+    /** The player being followed (kept across world changes), or null for the free camera. */
+    private String following;
+
+    private PlayerEntity findPlayer(String name) {
+        MinecraftClient mc = mc();
+        for (PlayerEntity p : new ArrayList<PlayerEntity>(mc.world.playerEntities)) {
+            if (p != mc.player && p.getGameProfile() != null && name.equals(p.getGameProfile().getName())) {
+                return p;
+            }
+        }
+        return null;
     }
 
     @Override
@@ -391,20 +418,33 @@ public final class ReplayBackendImpl implements ReplayBackend, Replay.ServerName
         if (mc.world == null || mc.player == null) {
             return;
         }
+        following = name;
         if (name == null) {
+            // Back to flying: start from where you were watching, not where the camera was left.
+            Entity watched = mc.getCameraEntity();
+            if (watched != null && watched != mc.player) {
+                mc.player.refreshPositionAndAngles(watched.x, watched.y, watched.z, watched.yaw, watched.pitch);
+                mc.player.prevX = watched.x;
+                mc.player.prevY = watched.y;
+                mc.player.prevZ = watched.z;
+                mc.player.prevYaw = watched.yaw;
+                mc.player.prevPitch = watched.pitch;
+                mc.player.headYaw = watched.yaw;
+            }
             mc.setCameraEntity(mc.player);
             return;
         }
-        for (PlayerEntity p : new ArrayList<PlayerEntity>(mc.world.playerEntities)) {
-            if (p != mc.player && p.getGameProfile() != null && name.equals(p.getGameProfile().getName())) {
-                mc.setCameraEntity(p);
-                return;
-            }
+        PlayerEntity target = findPlayer(name);
+        if (target != null) {
+            mc.setCameraEntity(target);
         }
     }
 
     @Override
     public String spectating() {
+        if (following != null) {
+            return following;
+        }
         MinecraftClient mc = mc();
         Entity cam = mc.getCameraEntity();
         if (cam == null || cam == mc.player || !(cam instanceof PlayerEntity)) {

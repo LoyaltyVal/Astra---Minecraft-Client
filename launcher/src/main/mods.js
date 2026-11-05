@@ -42,6 +42,14 @@ function findModJar(gameVersion, { packaged, bundledDir, gradleDir }) {
   return candidates.length ? candidates[0].file : null;
 }
 
+function listFiles(dir) {
+  try {
+    return fs.readdirSync(dir);
+  } catch {
+    return [];
+  }
+}
+
 function listDirs(dir) {
   try {
     return fs.readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name);
@@ -54,15 +62,43 @@ function listDirs(dir) {
  * The versions that have an Astra build (newest first): every known release plus any other
  * version folder found in the project or the installer, so a new port shows up on its own.
  */
-function availableVersions({ packaged, bundledDir, gradleDir }) {
+function availableVersions({ packaged, bundledDir, gradleDir }, serverVersions) {
   const ids = new Set(KNOWN_VERSIONS);
   for (const name of listDirs(bundledDir)) ids.add(name);
   if (!packaged) for (const name of listDirs(path.join(gradleDir, 'versions'))) ids.add(name);
+  const server = new Set(serverVersions || []);
+  for (const id of server) ids.add(id);
   return [...ids]
     .filter((id) => /^\d+(\.\d+){1,2}$/.test(id))
-    .filter((id) => findModJar(id, { packaged, bundledDir, gradleDir }))
     .sort((a, b) => compareVersions(b, a))
-    .map(describe);
+    .map((id) => ({
+      ...describe(id),
+      // Every version can be played; "astra" says whether Astra's mods come with it yet.
+      astra: server.has(id) || Boolean(findModJar(id, { packaged, bundledDir, gradleDir }))
+    }));
+}
+
+let serverListCache = { at: 0, versions: [] };
+
+/** The versions the Astra server has builds for (cached for a few minutes; empty when offline). */
+async function serverVersions() {
+  if (Date.now() - serverListCache.at < 5 * 60 * 1000) return serverListCache.versions;
+  let base;
+  try {
+    base = require('./astraServer').serverUrl();
+  } catch {
+    return [];
+  }
+  if (!/^https?:\/\//.test(base || '')) return [];
+  try {
+    const res = await fetch(`${base}/api/client/mods`, { signal: AbortSignal.timeout(3000), headers: { 'User-Agent': 'AstraLauncher' } });
+    if (!res.ok) return serverListCache.versions;
+    const versions = Object.keys((await res.json()).mods || {});
+    serverListCache = { at: Date.now(), versions };
+    return versions;
+  } catch {
+    return serverListCache.versions;
+  }
 }
 
 /** The newest modification time of any file under `dir` (0 if it doesn't exist). */
@@ -137,10 +173,18 @@ async function installMod(gameVersion, log) {
     bundledDir: paths.bundledModsDir(),
     gradleDir: paths.gradleProjectDir()
   });
+  const modsDir = path.join(paths.instanceDir(gameVersion), 'mods');
   if (!source) {
-    throw new Error(app.isPackaged
-      ? `Astra for ${gameVersion} isn't available on this server yet. Pick another version, or try again later.`
-      : `Astra for ${gameVersion} isn't built yet. Run "gradlew build" in the project folder, then launch again.`);
+    // In the project folder, a version being ported must be built first.
+    if (!app.isPackaged && fs.existsSync(path.join(paths.gradleProjectDir(), 'versions', gameVersion, 'src'))) {
+      throw new Error(`Astra for ${gameVersion} isn't built yet. Run "gradlew build" in the project folder, then launch again.`);
+    }
+    // No Astra for this version yet: play it on plain Fabric, with no old Astra jar lying around.
+    for (const name of listFiles(modsDir)) {
+      if (/^astra([-.].*)?\.jar$/i.test(name)) fs.rmSync(path.join(modsDir, name), { force: true });
+    }
+    log(`[Astra] Astra isn't out for ${gameVersion} yet, so this launch is Minecraft ${gameVersion} on Fabric without Astra.`);
+    return false;
   }
 
   // In development, refuse to launch an old build: code changes only take effect after a rebuild.
@@ -157,7 +201,6 @@ async function installMod(gameVersion, log) {
     }
   }
 
-  const modsDir = path.join(paths.instanceDir(gameVersion), 'mods');
   fs.mkdirSync(modsDir, { recursive: true });
 
   // Remove stale Astra jars with other names (other mods the player added are left alone).
@@ -223,4 +266,4 @@ async function ensureFabricApi(gameVersion, onProgress, log) {
   onProgress({ label: `Downloading Fabric API ${file.versionName}`, current: 1, total: 1 });
 }
 
-module.exports = { installMod, findModJar, isReleaseJar, availableVersions, ensureFabricApi };
+module.exports = { installMod, findModJar, isReleaseJar, availableVersions, serverVersions, ensureFabricApi };

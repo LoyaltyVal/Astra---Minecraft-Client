@@ -761,6 +761,23 @@ public final class CosmeticsManager {
     }
 
     /**
+     * The texture {@link #renderWings} would draw for this player, or null when they have no
+     * wings showing (for versions that must pick the render type before drawing).
+     */
+    public Object wingsTexture(UUID uuid) {
+        CosmeticsModule settings = settings();
+        if (settings == null || !settings.showWings()) {
+            return null;
+        }
+        PlayerInfo info = visible(uuid);
+        if (info == null || info.wings == null) {
+            return null;
+        }
+        Texture tex = getTexture(Type.WINGS, info.wings);
+        return tex == null ? null : tex.handle;
+    }
+
+    /**
      * Draws a player's wings. Called from the player renderer while the GL matrix is in the
      * player model's space (1 unit = 1 block, y pointing down, +z = behind the player).
      */

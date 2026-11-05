@@ -77,10 +77,10 @@ $('win-close').addEventListener('click', () => astra.window.close());
 
 // ---------------------------------------------------------------- versions
 
-/** Built versions grouped by family ("1.21" holds 1.21.11, 1.21.4, ...), in the order given (newest first). */
-function versionFamilies() {
+/** Versions grouped by family ("1.21" holds 1.21.11, 1.21.10, ...), newest first. */
+function versionFamilies(list) {
   const families = [];
-  for (const v of state.versions) {
+  for (const v of list) {
     let fam = families.find((f) => f.family === v.family);
     if (!fam) families.push((fam = { family: v.family, subtitle: v.subtitle, versions: [] }));
     fam.versions.push(v);
@@ -92,54 +92,108 @@ function selectVersion(id) {
   if (state.phase !== 'idle') return;
   state.selected = id;
   astra.saveSettings({ lastVersion: id });
+  closeVersionMenu();
   renderVersions();
 }
 
+function selectedVersion() {
+  return state.versions.find((v) => v.id === state.selected) || state.versions[0] || null;
+}
+
+/**
+ * The home screen shows the versions with Astra as a few pills; every version (Astra or plain
+ * Fabric) is in the picker next to Launch.
+ */
 function renderVersions() {
   const root = $('versions');
   root.innerHTML = '';
-  const families = versionFamilies();
-  root.classList.toggle('many', families.length > 3);
-  if (!families.length) {
-    root.append(el('p', 'versions-empty', 'No Astra builds yet. Run Start Astra.bat to build them.'));
-    return;
+  const astraVersions = state.versions.filter((v) => v.astra);
+  for (const v of astraVersions) {
+    const pill = el('button', 'quick-version', v.id);
+    pill.setAttribute('role', 'radio');
+    pill.setAttribute('aria-checked', String(v.id === state.selected));
+    pill.title = v.subtitle;
+    pill.disabled = state.phase !== 'idle';
+    pill.addEventListener('click', () => selectVersion(v.id));
+    root.append(pill);
   }
-  for (const fam of families) {
-    const chosen = fam.versions.find((v) => v.id === state.selected);
-    const shown = chosen || fam.versions[0];
-    const btn = el('div', 'version');
-    btn.tabIndex = 0;
-    btn.setAttribute('role', 'radio');
-    btn.setAttribute('aria-checked', String(Boolean(chosen)));
-    btn.setAttribute('aria-label', `Minecraft ${shown.id}`);
-    const top = el('div', 'version-top');
-    top.append(el('span', 'version-name', fam.versions.length > 1 ? fam.family : shown.id), el('span', 'version-dot'));
-    btn.append(top, el('div', 'version-sub', fam.subtitle));
-    if (fam.versions.length > 1) {
-      // Several releases of this line are built: pick the exact one.
-      const pick = el('select', 'version-patch');
-      pick.setAttribute('aria-label', `Minecraft ${fam.family} release`);
+  if (!astraVersions.length) {
+    root.append(el('p', 'versions-empty', 'Astra builds are on their way. Every version below still plays on Fabric.'));
+  }
+  const more = el('button', 'quick-version more', 'All versions');
+  more.disabled = state.phase !== 'idle';
+  more.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleVersionMenu();
+  });
+  root.append(more);
+
+  const v = selectedVersion();
+  $('picker-version').textContent = v ? v.id : 'None';
+  const badge = $('picker-badge');
+  badge.textContent = v && v.astra ? 'Astra' : 'Fabric';
+  badge.classList.toggle('plain', !(v && v.astra));
+  $('version-picker').disabled = state.phase !== 'idle' || !state.versions.length;
+  renderVersionMenu();
+}
+
+function renderVersionMenu() {
+  const menu = $('version-menu');
+  menu.innerHTML = '';
+  const section = (title, list, note) => {
+    if (!list.length) return;
+    const head = el('div', 'menu-head', title);
+    if (note) head.append(el('span', 'menu-note', note));
+    menu.append(head);
+    for (const fam of versionFamilies(list)) {
+      const row = el('div', 'menu-family');
+      row.append(el('span', 'menu-family-name', fam.family));
+      const chips = el('div', 'menu-chips');
       for (const v of fam.versions) {
-        const o = el('option', null, v.id);
-        o.value = v.id;
-        o.selected = v.id === shown.id;
-        pick.append(o);
+        const chip = el('button', 'menu-chip', v.id);
+        chip.setAttribute('role', 'option');
+        chip.setAttribute('aria-selected', String(v.id === state.selected));
+        chip.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectVersion(v.id);
+        });
+        chips.append(chip);
       }
-      pick.addEventListener('click', (e) => e.stopPropagation());
-      pick.addEventListener('change', () => selectVersion(pick.value));
-      pick.disabled = state.phase !== 'idle';
-      btn.append(pick);
+      row.append(chips);
+      menu.append(row);
     }
-    btn.addEventListener('click', () => selectVersion(shown.id));
-    btn.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        selectVersion(shown.id);
-      }
-    });
-    root.appendChild(btn);
+  };
+  section('With Astra', state.versions.filter((v) => v.astra));
+  section('Other versions', state.versions.filter((v) => !v.astra), 'Plain Fabric for now');
+}
+
+function toggleVersionMenu() {
+  const menu = $('version-menu');
+  if (menu.hidden) {
+    if (state.phase !== 'idle') return;
+    menu.hidden = false;
+    $('version-picker').setAttribute('aria-expanded', 'true');
+    const current = menu.querySelector('[aria-selected="true"]');
+    if (current) current.scrollIntoView({ block: 'center' });
+  } else {
+    closeVersionMenu();
   }
 }
+
+function closeVersionMenu() {
+  $('version-menu').hidden = true;
+  $('version-picker').setAttribute('aria-expanded', 'false');
+}
+
+$('version-picker').addEventListener('click', (e) => {
+  e.stopPropagation();
+  toggleVersionMenu();
+});
+$('version-menu').addEventListener('click', (e) => e.stopPropagation());
+document.addEventListener('click', closeVersionMenu);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeVersionMenu();
+});
 
 // ---------------------------------------------------------------- account
 
@@ -887,7 +941,7 @@ async function initUpdates() {
 
   if (info.ok) {
     state.versions = info.value.versions;
-    const ids = state.versions.map((v) => v.id);
+    const ids = state.versions.filter((v) => v.astra).map((v) => v.id);
     if (ids.length) {
       $('hero-versions').textContent =
         ids.length === 1

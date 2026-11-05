@@ -110,29 +110,75 @@ public final class ReplayControlsScreen extends UiScreen {
         return (int) (k * duration);
     }
 
-    /** Camera choice on the left, Hide HUD and Exit on the right. */
+    /** One camera button: the free camera (name null) or a player. */
+    private static final class Chip {
+        final String label;
+        final String name;
+        final int x;
+        final int y;
+        final int w;
+
+        Chip(String label, String name, int x, int y, int w) {
+            this.label = label;
+            this.name = name;
+            this.x = x;
+            this.y = y;
+            this.w = w;
+        }
+    }
+
+    private static final int MAX_ROWS = 6;
+    private int hiddenPlayers;
+
+    /** Every player in the replay as a button, wrapping onto more rows as needed. */
+    private List<Chip> chips(ReplayBackend b) {
+        List<Chip> out = new java.util.ArrayList<Chip>();
+        int maxX = width - 170;
+        int x = 8;
+        int y = 19;
+        int row = 0;
+        hiddenPlayers = 0;
+        List<String> players = b.players();
+        ReplayInfo info = Replay.get().info();
+        String recorder = info == null ? "" : info.playerName;
+        java.util.List<String[]> entries = new java.util.ArrayList<String[]>();
+        entries.add(new String[]{"Free Camera", null});
+        for (String p : players) {
+            entries.add(new String[]{p.equals(recorder) ? p + " (recorder)" : p, p});
+        }
+        for (String[] e : entries) {
+            int w = Render.width(e[0]) + 12;
+            if (x + w > maxX && x > 8) {
+                row++;
+                x = 8;
+                y += 17;
+            }
+            if (row >= MAX_ROWS) {
+                hiddenPlayers++;
+                continue;
+            }
+            out.add(new Chip(e[0], e[1], x, y, w));
+            x += w + 3;
+        }
+        return out;
+    }
+
+    /** Camera choice on the left (every player), Hide HUD and Exit on the right. */
     private void drawTop(int mx, int my) {
         ReplayBackend b = Replay.backend();
         if (b == null) {
             return;
         }
-        int y = 8;
-        int x = 8;
-        Render.text("CAMERA", x, y, Theme.SUBTEXT, true);
-        y += 11;
+        List<Chip> chips = chips(b);
+        Render.text("CAMERA  \u00b7  " + (chips.size() - 1 + hiddenPlayers) + " players", 8, 8, Theme.SUBTEXT, true);
         String watching = b.spectating();
-        x = chip("Free Camera", x, y, watching == null, mx, my) + 3;
-        List<String> players = b.players();
-        int shown = 0;
-        for (String p : players) {
-            if (x + Render.width(p) + 12 > width - 160) {
-                break;
-            }
-            x = chip(p, x, y, p.equals(watching), mx, my) + 3;
-            shown++;
+        for (Chip c : chips) {
+            boolean on = c.name == null ? watching == null : c.name.equals(watching);
+            chip(c.label, c.x, c.y, on, mx, my);
         }
-        if (shown < players.size()) {
-            Render.text("+" + (players.size() - shown) + " more", x + 2, y + 3, Theme.SUBTEXT, false);
+        if (hiddenPlayers > 0) {
+            Chip last = chips.get(chips.size() - 1);
+            Render.text("+" + hiddenPlayers + " more (fly closer)", last.x + last.w + 6, last.y + 3, Theme.SUBTEXT, false);
         }
 
         int rx = width - 8;
@@ -140,8 +186,8 @@ public final class ReplayControlsScreen extends UiScreen {
         chipRight(b.isHudHidden() ? "Show HUD" : "Hide HUD", rx, 8, false, mx, my, 0);
         ReplayInfo info = Replay.get().info();
         if (info != null) {
-            String what = (info.server.isEmpty() ? "Replay" : info.server) + (info.playerName.isEmpty() ? "" : "  ·  " + info.playerName);
-            Render.text(Render.trim(what, 200), width - 8 - Render.width(Render.trim(what, 200)), 26, Theme.SUBTEXT, true);
+            String what = (info.server.isEmpty() ? "Replay" : info.server) + (info.playerName.isEmpty() ? "" : "  \u00b7  " + info.playerName);
+            Render.text(Render.trim(what, 160), width - 8 - Render.width(Render.trim(what, 160)), 26, Theme.SUBTEXT, true);
         }
     }
 
@@ -207,24 +253,11 @@ public final class ReplayControlsScreen extends UiScreen {
             return;
         }
         // Camera chips.
-        int x = 8;
-        int y = 19;
-        int w = Render.width("Free Camera") + 12;
-        if (Render.inside(mx, my, x, y, w, 14)) {
-            b.spectate(null);
-            return;
-        }
-        x += w + 3;
-        for (String p : b.players()) {
-            if (x + Render.width(p) + 12 > width - 160) {
-                break;
-            }
-            int pw = Render.width(p) + 12;
-            if (Render.inside(mx, my, x, y, pw, 14)) {
-                b.spectate(p);
+        for (Chip c : chips(b)) {
+            if (Render.inside(mx, my, c.x, c.y, c.w, 14)) {
+                b.spectate(c.name);
                 return;
             }
-            x += pw + 3;
         }
     }
 

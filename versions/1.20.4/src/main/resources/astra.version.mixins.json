@@ -16,7 +16,9 @@
     "WorldRendererMixin",
     "AbstractClientPlayerEntityMixin",
     "TitleScreenMixin",
-    "MultiplayerScreenMixin"
+    "MultiplayerScreenMixin",
+    "PlayerEntityRendererMixin",
+    "PlayerModelEmoteMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -40,7 +40,7 @@ const fail = (msg) => {
 };
 
 /** Runs a command, showing its output live and saving it to the log. */
-function run(cmd, args, cwd, label, env = process.env) {
+function run(cmd, args, cwd, label, env = process.env, soft = false) {
   say(label);
   // With shell: true a path containing spaces must be quoted.
   if (WIN && /\s/.test(cmd) && !cmd.startsWith('"')) cmd = `"${cmd}"`;
@@ -54,8 +54,8 @@ function run(cmd, args, cwd, label, env = process.env) {
     child.stderr.on('data', pass(process.stderr));
     child.on('error', (e) => fail(`${label} couldn't start: ${e.message}`));
     child.on('close', (code) => {
-      if (code !== 0) fail(`${label} failed (exit code ${code}). Scroll up for the error.`);
-      resolve();
+      if (code !== 0 && !soft) fail(`${label} failed (exit code ${code}). Scroll up for the error.`);
+      resolve(code);
     });
   });
 }
@@ -680,6 +680,52 @@ async function address() {
   ]);
 }
 
+/**
+ * Downloads and decompiles the Minecraft versions being ported (versions/<mc> with
+ * astra_experimental=prepare), so their code can be written against the real game.
+ */
+async function prepare() {
+  const versions = fs.readdirSync(path.join(ROOT, 'versions')).filter((v) => {
+    const props = path.join(ROOT, 'versions', v, 'gradle.properties');
+    return fs.existsSync(props) && /^astra_experimental=prepare$/m.test(fs.readFileSync(props, 'utf8'));
+  });
+  if (!versions.length) {
+    say('Nothing to prepare.');
+    return;
+  }
+  // Configuring a version is what makes Loom download and remap that Minecraft; "tasks" just lists them.
+  const tasks = versions.map((v) => `:versions:${v}:tasks`);
+  await run(WIN ? 'gradlew.bat' : './gradlew', ['-Pastra_prepare_versions=true', ...tasks, '--console=plain'], ROOT,
+    `Downloading Minecraft ${versions.join(', ')} for porting (a few minutes each the first time)...`, gradleEnv);
+  say(`Ready: ${versions.join(', ')}. Tell Claude, and the code for them can be written next.`);
+}
+
+/**
+ * Builds the versions still being ported (astra_experimental=true), one at a time, so one that
+ * doesn't build yet doesn't stop the others. The ones that build are published like the rest.
+ */
+async function buildNew() {
+  const versions = fs.readdirSync(path.join(ROOT, 'versions')).filter((v) => {
+    const props = path.join(ROOT, 'versions', v, 'gradle.properties');
+    return fs.existsSync(props) && /^astra_experimental=true$/m.test(fs.readFileSync(props, 'utf8'));
+  });
+  if (!versions.length) {
+    say('No new versions to build.');
+    return;
+  }
+  const built = [];
+  const failed = [];
+  for (const v of versions) {
+    const code = await run(WIN ? 'gradlew.bat' : './gradlew',
+      ['-Pastra_experimental_versions=true', `:versions:${v}:build`, '--console=plain'], ROOT,
+      `Building Astra for Minecraft ${v}...`, gradleEnv, true);
+    (code === 0 ? built : failed).push(v);
+  }
+  publishMods();
+  if (built.length) say(`Built: ${built.join(', ')}.`);
+  if (failed.length) say(`Didn't build: ${failed.join(', ')}. Send Claude astra-last-run.log to fix them.`);
+}
+
 // ---------------------------------------------------------------- commands
 
 (async () => {
@@ -699,6 +745,12 @@ async function address() {
     installerAddress(); // before the build, so a bad address fails fast
     await build();
     await installer();
+  } else if (cmd === 'prepare') {
+    checkTools();
+    await prepare();
+  } else if (cmd === 'build-new') {
+    checkTools();
+    await buildNew();
   } else if (cmd === 'host') {
     await host();
   } else if (cmd === 'address') {
@@ -712,6 +764,6 @@ async function address() {
     await startServerWindow();
     startApp();
   } else {
-    fail(`Unknown command "${cmd}". Use start, build, server, installer, host, address or duckdns.`);
+    fail(`Unknown command "${cmd}". Use start, build, build-new, server, installer, prepare, host, address or duckdns.`);
   }
 })();

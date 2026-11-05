@@ -24,11 +24,15 @@ rootProject.name = "astra-client"
 // astra_experimental_versions=true (gradle.properties, or -Pastra_experimental_versions=true), so a
 // version still being ported can never break the build of the ones players use.
 def experimentalOn = providers.gradleProperty("astra_experimental_versions").getOrElse("false") == "true"
+// astra_experimental=prepare: a version with no code yet, only set up so Gradle downloads and
+// decompiles that Minecraft ("Prepare New Versions.bat", which passes astra_prepare_versions=true).
+def prepareOn = providers.gradleProperty("astra_prepare_versions").getOrElse("false") == "true"
 file("versions").listFiles().findAll { it.isDirectory() && new File(it, "build.gradle").exists() }.sort().each { dir ->
     def props = new Properties()
     def propsFile = new File(dir, "gradle.properties")
     if (propsFile.exists()) propsFile.withInputStream { props.load(it) }
-    if (props.getProperty("astra_experimental") != "true" || experimentalOn) {
+    def stage = props.getProperty("astra_experimental")
+    if (stage == "prepare" ? prepareOn : (stage != "true" || experimentalOn)) {
         include "versions:${dir.name}"
     }
 }

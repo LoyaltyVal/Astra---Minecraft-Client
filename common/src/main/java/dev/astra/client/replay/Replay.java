@@ -309,6 +309,7 @@ public final class Replay {
         int target = Math.max(0, Math.min(l.duration(), ms));
         if (target < time) {
             dev.astra.client.ui.UiScreen open = Astra.platform().getOpenUi();
+            String watching = b.spectating();
             b.close();
             try {
                 b.open(l.info);
@@ -319,6 +320,9 @@ public final class Replay {
             }
             cursor = 0;
             dispatchUntil(target, true);
+            if (watching != null) {
+                b.spectate(watching); // keep watching the same player after the rebuild
+            }
             if (open != null) {
                 Astra.platform().openUi(open);
             }

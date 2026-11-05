@@ -34,7 +34,10 @@ repositories {
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    if (isModern) {
+    if (project.findProperty("astra_mappings") == "mojang") {
+        // Mojang's own names (1.21+): the same names Minecraft 26.x ships with.
+        mappings loom.officialMojangMappings()
+    } else if (isModern) {
         mappings "net.fabricmc:yarn:${project.minecraft_version}+build.${project.yarn_build}:v2"
     } else {
         mappings(legacy.yarn(project.minecraft_version, project.yarn_build))

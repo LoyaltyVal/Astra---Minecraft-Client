@@ -31,7 +31,7 @@ for (const mc of versions) {
   if (!fs.existsSync(jar)) {
     // Versions still being ported are only built on request (astra_experimental_versions=true).
     const props = path.join(projectDir, 'versions', mc, 'gradle.properties');
-    const experimental = fs.existsSync(props) && /^astra_experimental=true$/m.test(fs.readFileSync(props, 'utf8'));
+    const experimental = fs.existsSync(props) && /^astra_experimental=(true|prepare)$/m.test(fs.readFileSync(props, 'utf8'));
     if (experimental) {
       console.log(`- ${mc}: experimental, not built (skipped)`);
     } else {

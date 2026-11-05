@@ -7,7 +7,7 @@ const paths = require('./paths');
 const log = require('./log');
 const astraServer = require('./astraServer');
 const { KNOWN_VERSIONS } = require('./config');
-const { availableVersions } = require('./mods');
+const { availableVersions, serverVersions } = require('./mods');
 const { launchGame, isRunning, killGame } = require('./launch');
 const updater = require('./updater');
 
@@ -107,17 +107,17 @@ function handle(channel, fn) {
   });
 }
 
-function builtVersions() {
+async function builtVersions() {
   return availableVersions({
     packaged: app.isPackaged,
     bundledDir: paths.bundledModsDir(),
     gradleDir: paths.gradleProjectDir()
-  });
+  }, app.isPackaged ? await serverVersions() : []);
 }
 
-handle('app:info', () => ({
+handle('app:info', async () => ({
   version: app.getVersion(),
-  versions: builtVersions(),
+  versions: await builtVersions(),
   knownVersions: KNOWN_VERSIONS,
   running: isRunning(),
   gameFolder: paths.root()

@@ -299,6 +299,19 @@ public final class PlatformImpl implements Platform {
         if (!(handle instanceof Identifier)) {
             return;
         }
+        if (RenderCtx.worldBuffers != null) {
+            // Inside an entity layer (wings): draw with the entity's light, both sides showing.
+            MatrixStack.Entry entry = matrices().peek();
+            net.minecraft.client.render.VertexConsumer vc =
+                    RenderCtx.worldBuffers.getBuffer(net.minecraft.client.render.RenderLayer.getEntityTranslucent((Identifier) handle));
+            float[][] corners = {{x0, y0, u0, v0}, {x0, y1, u0, v1}, {x1, y1, u1, v1}, {x1, y0, u1, v0}};
+            for (float[] c : corners) {
+                vc.vertex(entry.getPositionMatrix(), c[0], c[1], 0f).color(255, 255, 255, 255).texture(c[2], c[3])
+                        .overlay(net.minecraft.client.render.OverlayTexture.DEFAULT_UV).light(RenderCtx.worldLight)
+                        .normal(entry.getNormalMatrix(), 0f, 0f, 1f).next();
+            }
+            return;
+        }
         RenderSystem.setShaderTexture(0, (Identifier) handle);
         RenderSystem.setShader(GameRenderer::getPositionTexColorProgram);
         RenderSystem.enableBlend();

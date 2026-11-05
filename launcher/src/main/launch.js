@@ -64,6 +64,14 @@ async function launchGame(versionId, ui) {
   ui.progress({ label: 'Signing in', current: 0, total: 1 });
   // A Minecraft token with a few hours left, so joining servers keeps working through a long session.
   const authorization = await auth.getLaunchAuth({ minValidMs: 3 * 60 * 60 * 1000 });
+  // --userProperties must be JSON text. 1.7.10 reads it with Gson and crashes on startup when it's
+  // empty (NullPointerException in Main.main); newer versions shrug it off.
+  if (authorization && typeof authorization.user_properties !== 'string') {
+    authorization.user_properties = JSON.stringify(authorization.user_properties || {});
+  }
+  if (authorization && !authorization.user_properties.trim()) {
+    authorization.user_properties = '{}';
+  }
 
   // Mojang says which Java each version needs (8 for 1.7-1.16, 17 for 1.18, 21 for 1.20.5+, ...).
   // The Java path in Settings is a Java 8 override, so it's only used for versions that run on Java 8.
@@ -79,8 +87,9 @@ async function launchGame(versionId, ui) {
   const custom = await ensureLoader(version.id, ui.progress);
   step('installing Astra');
   ui.progress({ label: 'Checking for Astra updates', current: 0, total: 1 });
-  await installMod(version.id, ui.log);
-  if (version.fabricApi) await ensureFabricApi(version.id, ui.progress, ui.log);
+  const withAstra = (await installMod(version.id, ui.log)) !== false;
+  // Fabric API is only there for Astra; a version without Astra yet launches on plain Fabric.
+  if (version.fabricApi && withAstra) await ensureFabricApi(version.id, ui.progress, ui.log);
 
   // Cosmetics server + your Astra session for the game. The token is kept out of the logs.
   ui.progress({ label: 'Connecting to Astra', current: 0, total: 1 });

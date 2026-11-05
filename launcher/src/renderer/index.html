@@ -66,7 +66,7 @@
             <p class="lede">29 mods, a drag-and-drop HUD editor and your own capes and wings.
               Press <kbd>Right Shift</kbd> in game.</p>
 
-            <div class="versions" id="versions" role="radiogroup" aria-label="Minecraft version"></div>
+            <div class="quick-versions" id="versions" role="radiogroup" aria-label="Astra versions"></div>
           </div>
 
           <aside class="card news" aria-label="What's new">
@@ -96,10 +96,20 @@
 
           <div class="launch-area">
             <div class="status" id="status" aria-live="polite">Ready</div>
+            <div class="launch-row">
+              <div class="picker">
+                <button class="picker-button" id="version-picker" aria-haspopup="listbox" aria-expanded="false">
+                  <span class="picker-label">Version</span>
+                  <span class="picker-value"><span id="picker-version">1.8.9</span><span class="picker-badge" id="picker-badge">Astra</span></span>
+                  <svg class="picker-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="version-menu" id="version-menu" role="listbox" aria-label="Minecraft version" hidden></div>
+              </div>
             <button class="launch" id="launch">
               <span class="launch-fill" id="launch-fill"></span>
               <span class="launch-label" id="launch-label">Launch</span>
             </button>
+            </div>
           </div>
         </div>
       </section>
