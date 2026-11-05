@@ -4,6 +4,7 @@ import dev.astra.client.module.Category;
 import dev.astra.client.module.Module;
 import dev.astra.client.module.setting.BooleanSetting;
 import dev.astra.client.module.setting.ColorSetting;
+import dev.astra.client.module.setting.ModeSetting;
 
 /** Client-wide options, edited from the gear button in the mod menu. Always enabled. */
 public final class ClientSettingsModule extends Module {
@@ -15,6 +16,10 @@ public final class ClientSettingsModule extends Module {
     private final BooleanSetting centerInventory;
     private final BooleanSetting titleButtons;
     private final BooleanSetting ownNametag;
+    private final BooleanSetting friendStatuses;
+    private final BooleanSetting friendRequests;
+    private final BooleanSetting friendMessages;
+    private final ModeSetting notificationPosition;
 
     public ClientSettingsModule() {
         super("Client", "Menu colours, editor options and game tweaks.", Category.CLIENT, true);
@@ -24,7 +29,11 @@ public final class ClientSettingsModule extends Module {
         noHeartFlash = setting(new BooleanSetting("No Heart Flashing", true));
         centerInventory = setting(new BooleanSetting("Center Inventory", true));
         ownNametag = setting(new BooleanSetting("Own Nametag in F5", true));
-        titleButtons = setting(new BooleanSetting("Astra Buttons on Title Screen", true));
+        titleButtons = setting(new BooleanSetting("Astra Title Screen", true));
+        friendStatuses = setting(new BooleanSetting("Show Friend Statuses", true));
+        friendRequests = setting(new BooleanSetting("Show Friend Requests", true));
+        friendMessages = setting(new BooleanSetting("Show Friend Messages", true));
+        notificationPosition = setting(new ModeSetting("Notifications Position", "Top Right", "Top Right", "Top Left"));
     }
 
     @Override
@@ -59,13 +68,30 @@ public final class ClientSettingsModule extends Module {
         return centerInventory.isOn();
     }
 
-    /** Shows your own name tag in third person. */
-    /** The Friends / Quick Join / Screenshots row on the title screen. */
+    /** Astra's own title screen (account menu, big buttons, icon bar) instead of vanilla's. */
     public boolean titleButtons() {
         return titleButtons.isOn();
     }
 
     public boolean ownNametag() {
         return ownNametag.isOn();
+    }
+
+    /** Pop-ups when a friend comes online. */
+    public boolean friendStatuses() {
+        return friendStatuses.isOn();
+    }
+
+    public boolean friendRequests() {
+        return friendRequests.isOn();
+    }
+
+    public boolean friendMessages() {
+        return friendMessages.isOn();
+    }
+
+    /** True when pop-ups slide in on the left instead of the right. */
+    public boolean notificationsLeft() {
+        return notificationPosition.is("Top Left");
     }
 }

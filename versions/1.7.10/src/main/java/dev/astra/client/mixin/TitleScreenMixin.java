@@ -5,13 +5,19 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.TitleScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Constant;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyConstant;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** "Minecraft 1.7.10" in the corner of the title screen becomes "Astra Client 1.7.10". */
+/**
+ * Astra's title screen ({@link dev.astra.client.ui.TitleMenu}): account menu, big buttons and an
+ * icon bar, drawn over the panorama (or Menu Background). Vanilla's buttons stay, hidden, so
+ * Singleplayer, Options and the rest still run vanilla's own code. With "Astra Title Screen" off
+ * it's the vanilla screen plus a row of Astra buttons. "Minecraft 1.7.10" becomes "Astra Client 1.7.10".
+ */
 @Mixin(TitleScreen.class)
 public abstract class TitleScreenMixin extends Screen {
 
@@ -20,12 +26,18 @@ public abstract class TitleScreenMixin extends Screen {
     private static final int SCREENSHOTS = 0x4153_0003;
     private static final int ACCOUNTS = 0x4153_0004;
 
-    /** A row of Astra buttons under Options / Quit Game. */
+    @Shadow
+    private void renderBackground(int mouseX, int mouseY, float tickDelta) {
+    }
+
+    /** Astra's screen: hide vanilla's buttons (they still work when clicked through TitleMenu). */
     @Inject(method = "init", at = @At("TAIL"))
     @SuppressWarnings("unchecked")
     private void astra$buttons(CallbackInfo ci) {
-        dev.astra.client.module.impl.ClientSettingsModule settings = Astra.get().tweaks();
-        if (settings != null && !settings.titleButtons()) {
+        if (dev.astra.client.ui.TitleMenu.enabled()) {
+            for (Object b : this.buttons) {
+                ((ButtonWidget) b).visible = false;
+            }
             return;
         }
         int y = this.height / 4 + 48 + 72 + 12 + 24;
@@ -55,6 +67,65 @@ public abstract class TitleScreenMixin extends Screen {
         ci.cancel();
     }
 
+
+    @Inject(method = "render", at = @At("HEAD"), cancellable = true)
+    private void astra$render(int mouseX, int mouseY, float tickDelta, CallbackInfo ci) {
+        if (!dev.astra.client.ui.TitleMenu.enabled()) {
+            return;
+        }
+        renderBackground(mouseX, mouseY, tickDelta);
+        dev.astra.client.ui.TitleMenu.draw(this.width, this.height, mouseX, mouseY);
+        ci.cancel();
+    }
+
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    private void astra$mouse(int mouseX, int mouseY, int button, CallbackInfo ci) {
+        if (!dev.astra.client.ui.TitleMenu.enabled()) {
+            return;
+        }
+        ci.cancel();
+        dev.astra.client.ui.TitleMenu.click(this.width, this.height, mouseX, mouseY, button, new dev.astra.client.ui.TitleMenu.Actions() {
+            @Override
+            public void singleplayer() {
+                press(1);
+            }
+
+            @Override
+            public void multiplayer() {
+                press(2);
+            }
+
+            @Override
+            public void options() {
+                press(0);
+            }
+
+            @Override
+            public void language() {
+                press(5);
+            }
+
+            @Override
+            public void quit() {
+                press(4);
+            }
+        });
+    }
+
+    /** Runs a vanilla title button (by id) through vanilla's own buttonClicked. */
+    private void press(int id) {
+        for (Object o : this.buttons) {
+            ButtonWidget b = (ButtonWidget) o;
+            if (b.id == id) {
+                try {
+                    this.buttonClicked(b);
+                } catch (Exception e) {
+                    System.err.println("[Astra] Title button " + id + " failed: " + e);
+                }
+                return;
+            }
+        }
+    }
 
     @ModifyConstant(method = "render", constant = @Constant(stringValue = "Minecraft 1.7.10"))
     private String astra$brand(String original) {

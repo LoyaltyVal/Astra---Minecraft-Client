@@ -57,6 +57,9 @@ public final class Notifications {
         }
         int w = 160;
         int y = 6;
+        dev.astra.client.module.impl.ClientSettingsModule tweaks =
+                dev.astra.client.Astra.get() == null ? null : dev.astra.client.Astra.get().tweaks();
+        boolean onLeft = tweaks != null && tweaks.notificationsLeft();
         long now = System.currentTimeMillis();
         for (Toast t : copy) {
             long age = now - t.at;
@@ -65,6 +68,9 @@ public final class Notifications {
             float k = Math.max(0f, Math.min(in, out));
             k = k * k * (3 - 2 * k);
             int x = screenWidth - 6 - (int) (w * k) + (int) ((1 - k) * 6);
+            if (onLeft) {
+                x = 6 - (int) (w * (1 - k)) - (int) ((1 - k) * 6);
+            }
             int h = 30;
             int alpha = (int) (0xE6 * k);
             if (alpha < 8) {

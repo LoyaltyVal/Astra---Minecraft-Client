@@ -37,12 +37,12 @@ import java.util.Map;
  *   +-----------------------------------------------+
  *
  * MODS: each card shows a live preview, a quick action (Hide from HUD / Add to HUD / Enable)
- * and Options. COSMETICS: capes and wings from your image folders; click to equip.
- * Enabled/equipped cards are filled with the accent colour (gear page).
+ * and Options. COSMETICS: your capes and wings; click to equip. The gear opens the client
+ * settings ({@link SettingsPage}). Enabled/equipped cards are filled with the accent colour.
  */
 public final class ModMenuScreen extends UiScreen {
 
-    private enum Page { MODS, COSMETICS }
+    private enum Page { MODS, SETTINGS, COSMETICS }
 
     private static final Category[] TABS = {null, Category.HUD, Category.MECHANIC, Category.VISUAL};
 
@@ -60,6 +60,7 @@ public final class ModMenuScreen extends UiScreen {
     private static final long OPEN_ANIMATION_MS = 180;
 
     private Page page = Page.MODS;
+    private SettingsPage settingsPage;
     private Category filter;
     private CosmeticsManager.Type cosmeticType = CosmeticsManager.Type.CAPE;
     private Module editing;
@@ -98,10 +99,24 @@ public final class ModMenuScreen extends UiScreen {
     }
 
     public ModMenuScreen(Module openSettingsFor) {
-        this.editing = openSettingsFor;
-        if (openSettingsFor instanceof CosmeticsModule) {
-            this.page = Page.COSMETICS;
+        if (openSettingsFor instanceof ClientSettingsModule) {
+            this.page = Page.SETTINGS;
+            return;
         }
+        this.editing = openSettingsFor;
+        this.page = openSettingsFor instanceof CosmeticsModule ? Page.COSMETICS : Page.MODS;
+    }
+
+    private SettingsPage settingsPage() {
+        if (settingsPage == null) {
+            settingsPage = new SettingsPage(new Runnable() {
+                @Override
+                public void run() {
+                    switchPage(Page.MODS);
+                }
+            });
+        }
+        return settingsPage;
     }
 
     /** Opens straight to the cosmetics page. */
@@ -190,6 +205,9 @@ public final class ModMenuScreen extends UiScreen {
     }
 
     private int contentHeight() {
+        if (page == Page.SETTINGS) {
+            return 0;
+        }
         if (editing != null) {
             return (editing.getSettings().size() + 2) * ROW_H + 24;
         }
@@ -241,6 +259,12 @@ public final class ModMenuScreen extends UiScreen {
         drawTopButtons(mx, my);
 
         Render.round(px, py, pw, ph, RADIUS + 1, Theme.PANEL);
+        if (page == Page.SETTINGS) {
+            settingsPage().draw(px, py, pw, ph, mx, my);
+            Astra.platform().popMatrix();
+            drawCornerButtons(mx, my);
+            return;
+        }
         drawTabBar(mx, my);
 
         Render.scissor(contentX, contentY, contentW, contentH);
@@ -281,7 +305,7 @@ public final class ModMenuScreen extends UiScreen {
     }
 
     private void drawTopButtons(int mx, int my) {
-        boolean onClient = editing instanceof ClientSettingsModule;
+        boolean onClient = page == Page.SETTINGS;
 
         // Left: HUD editor (four little boxes).
         int lx = editHudX();
@@ -294,8 +318,8 @@ public final class ModMenuScreen extends UiScreen {
         Render.outline(ix, iy + 6, 4, 4, Theme.TEXT);
         Render.outline(ix + 6, iy + 6, 4, 4, Theme.TEXT);
 
-        pageButton("MODS", modsX(), page == Page.MODS && !onClient, mx, my);
-        pageButton("COSMETICS", cosmeticsX(), page == Page.COSMETICS && !onClient, mx, my);
+        pageButton("MODS", modsX(), page == Page.MODS, mx, my);
+        pageButton("COSMETICS", cosmeticsX(), page == Page.COSMETICS, mx, my);
 
         // Right: client settings (a gear made of rects).
         int rx = settingsX();
@@ -741,13 +765,17 @@ public final class ModMenuScreen extends UiScreen {
                 return;
             }
             if (Render.inside(mx, my, settingsX(), buttonsY, ICON_BUTTON, TOP_H)) {
-                openSettings(Astra.get().getModules().get(ClientSettingsModule.class));
+                switchPage(page == Page.SETTINGS ? Page.MODS : Page.SETTINGS);
                 return;
             }
             if (Render.inside(mx, my, 6 + CORNER + 4, cornerY(), CORNER, CORNER)) {
                 showHelp = !showHelp;
                 return;
             }
+        }
+        if (page == Page.SETTINGS) {
+            settingsPage().click(mx, my, button);
+            return;
         }
 
         if (clickTabBar(mx, my, button)) {
@@ -923,6 +951,10 @@ public final class ModMenuScreen extends UiScreen {
 
     @Override
     protected void mouseScrolled(int mx, int my, int direction) {
+        if (page == Page.SETTINGS) {
+            settingsPage().scroll(direction);
+            return;
+        }
         targetScroll = Math.max(0, Math.min(maxScroll(), targetScroll - direction * 30));
     }
 
@@ -938,11 +970,18 @@ public final class ModMenuScreen extends UiScreen {
 
     @Override
     public boolean usesEscape() {
+        if (page == Page.SETTINGS) {
+            return settingsPage().usesEscape();
+        }
         return typing != null || listening != null;
     }
 
     @Override
     public void charTyped(char c, int keyCode) {
+        if (page == Page.SETTINGS) {
+            settingsPage().charTyped(c, keyCode);
+            return;
+        }
         if (typing == null) {
             return;
         }
@@ -962,6 +1001,9 @@ public final class ModMenuScreen extends UiScreen {
 
     @Override
     protected void keyPressed(int keyCode) {
+        if (page == Page.SETTINGS && settingsPage().keyPressed(keyCode)) {
+            return;
+        }
         if (typing != null) {
             return; // typed characters arrive through charTyped
         }
@@ -1005,6 +1047,9 @@ public final class ModMenuScreen extends UiScreen {
 
     private void switchPage(Page next) {
         stopTyping(true);
+        if (settingsPage != null) {
+            settingsPage.stopTyping(true);
+        }
         page = next;
         editing = null;
         listening = null;

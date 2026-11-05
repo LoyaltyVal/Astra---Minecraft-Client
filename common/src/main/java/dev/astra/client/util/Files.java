@@ -67,4 +67,30 @@ public final class Files {
         t.setDaemon(true);
         t.start();
     }
+
+    /** Opens a web page in the default browser without blocking the game. */
+    public static void openUrl(final String url) {
+        if (url == null || !url.matches("https?://.+")) {
+            return;
+        }
+        Thread t = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+                try {
+                    if (os.contains("win")) {
+                        new ProcessBuilder("rundll32", "url.dll,FileProtocolHandler", url).start();
+                    } else if (os.contains("mac")) {
+                        new ProcessBuilder("open", url).start();
+                    } else {
+                        new ProcessBuilder("xdg-open", url).start();
+                    }
+                } catch (Exception e) {
+                    System.err.println("[Astra] Couldn't open " + url + ": " + e);
+                }
+            }
+        }, "Astra open link");
+        t.setDaemon(true);
+        t.start();
+    }
 }

@@ -733,6 +733,17 @@ public final class CosmeticsManager {
         return uuid == null ? null : getRankColor(uuid);
     }
 
+    /** An Astra player's rank name (e.g. "Owner") by Minecraft name, or null if unknown. */
+    public String getRankNameByName(String name) {
+        if (name == null) {
+            return null;
+        }
+        String id = uuidByName.get(name.toLowerCase(java.util.Locale.ROOT));
+        UUID uuid = id == null ? null : dashedUuid(id);
+        PlayerInfo info = uuid == null ? null : visible(uuid);
+        return info == null ? null : info.rankName;
+    }
+
     private static UUID dashedUuid(String id) {
         try {
             return UUID.fromString(id.replaceFirst("(\\w{8})(\\w{4})(\\w{4})(\\w{4})(\\w{12})", "$1-$2-$3-$4-$5"));

@@ -293,13 +293,13 @@ public final class SocialManager {
             }
             for (Friend x : in) {
                 names.put(x.uuid, x.name);
-                if (knownIncoming.add(x.uuid) && !firstFriendsLoad) {
+                if (knownIncoming.add(x.uuid) && !firstFriendsLoad && tweak(1)) {
                     Notifications.push("Friend request", x.name + " wants to be friends. Shift + Tab to answer.", x.rankColor);
                 }
             }
             for (Friend x : f) {
                 if (x.playing && knownPlaying.add(x.uuid) && !firstFriendsLoad) {
-                    Notifications.push(x.name + " is online", x.status(), x.rankColor);
+                    if (tweak(0)) Notifications.push(x.name + " is online", x.status(), x.rankColor);
                 } else if (!x.playing) {
                     knownPlaying.remove(x.uuid);
                 }
@@ -368,7 +368,7 @@ public final class SocialManager {
                         unread.put(other, n == null ? 1 : n + 1);
                     }
                 }
-                if (notify && !mine && !other.equals(reading)) {
+                if (notify && !mine && !other.equals(reading) && tweak(2)) {
                     Notifications.push(nameOf(other), msg.text, Notifications.MESSAGE);
                 }
             }
@@ -559,5 +559,15 @@ public final class SocialManager {
         } catch (Exception e) {
             return System.currentTimeMillis();
         }
+    }
+
+    /** The notification switches in Settings: 0 friend statuses, 1 friend requests, 2 messages. */
+    private static boolean tweak(int which) {
+        dev.astra.client.Astra a = dev.astra.client.Astra.get();
+        dev.astra.client.module.impl.ClientSettingsModule t = a == null ? null : a.tweaks();
+        if (t == null) {
+            return true;
+        }
+        return which == 0 ? t.friendStatuses() : which == 1 ? t.friendRequests() : t.friendMessages();
     }
 }

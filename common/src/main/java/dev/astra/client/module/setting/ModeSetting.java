@@ -24,6 +24,12 @@ public final class ModeSetting extends Setting<String> {
         value = modes[(index + 1) % modes.length];
     }
 
+    /** The previous mode (the left arrow in the settings page). */
+    public void cycleBack() {
+        int index = Arrays.asList(modes).indexOf(value);
+        value = modes[(index - 1 + modes.length) % modes.length];
+    }
+
     @Override
     public JsonElement save() {
         return new JsonPrimitive(value);

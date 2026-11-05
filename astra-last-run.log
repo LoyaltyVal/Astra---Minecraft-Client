@@ -1,52 +1,52 @@
-Astra host - 2026-11-04T06:32:26.529Z
-[Astra] Starting a free Cloudflare quick tunnel...
-2026-11-04T06:32:26Z INF Thank you for trying Cloudflare Tunnel. Doing so, without a Cloudflare account, is a quick way to experiment and try it out. However, be aware that these account-less Tunnels have no uptime guarantee, are subject to the Cloudflare Online Services Terms of Use (https://www.cloudflare.com/website-terms/), and Cloudflare reserves the right to investigate your use of Tunnels for violations of such terms. If you intend to use Tunnels in production you should use a pre-created named tunnel by following: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps
-2026-11-04T06:32:26Z INF Requesting new quick Tunnel on trycloudflare.com...
-2026-11-04T06:32:30Z INF +--------------------------------------------------------------------------------------------+
-2026-11-04T06:32:30Z INF |  Your quick Tunnel has been created! Visit it at (it may take some time to be reachable):  |
-2026-11-04T06:32:30Z INF |  https://feelings-warranties-simulations-applicants.trycloudflare.com                      |
-2026-11-04T06:32:30Z INF +--------------------------------------------------------------------------------------------+
-2026-11-04T06:32:30Z INF Cannot determine default configuration path. No file [config.yml config.yaml] in [~/.cloudflared ~/.cloudflare-warp ~/cloudflare-warp]
-2026-11-04T06:32:30Z INF Version 2026.10.5 (Checksum db4e4c413612a0916f3e1679d3caaf376f94911952d163028fb726fb2e0516a9)
-2026-11-04T06:32:30Z INF GOOS: windows, GOVersion: go1.27.3, GoArch: amd64
-2026-11-04T06:32:30Z INF Settings: map[ha-connections:1 no-autoupdate:true protocol:quic url:http://localhost:8787]
-2026-11-04T06:32:30Z INF cloudflared will not automatically update on Windows systems.
-2026-11-04T06:32:30Z INF Generated Connector ID: 23c47f89-e4cd-4099-8a3e-9add1422e0e6
-2026-11-04T06:32:30Z INF Initial protocol quic
-2026-11-04T06:32:30Z INF ICMP proxy will use 192.168.0.243 as source for IPv4
-2026-11-04T06:32:30Z INF ICMP proxy will use 2620:9b::1925:1aa4 in zone Hamachi as source for IPv6
-2026-11-04T06:32:30Z INF cloudflared does not support loading the system root certificate pool on Windows. Please use --origin-ca-pool <PATH> to specify the path to the certificate pool
-2026-11-04T06:32:30Z INF ICMP proxy will use 192.168.0.243 as source for IPv4
-2026-11-04T06:32:30Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=0 event=0 ip=198.41.192.167
-2026-11-04T06:32:30Z INF ICMP proxy will use 2620:9b::1925:1aa4 in zone Hamachi as source for IPv6
-2026-11-04T06:32:30Z INF Starting metrics server on 127.0.0.1:20241/metrics
-[astra] Astra server running at https://feelings-warranties-simulations-applicants.trycloudflare.com (port 8787)
-2026-11-04T06:32:30Z INF +-------------------------------------------------------------------------------------+
-2026-11-04T06:32:30Z INF |                               CONNECTIVITY PRE-CHECKS                               |
-2026-11-04T06:32:30Z INF +-------------------------------------------------------------------------------------+
-2026-11-04T06:32:30Z INF |  COMPONENT         TARGET                     STATUS  DETAILS                       |
-2026-11-04T06:32:30Z INF |  DNS Resolution    region1.v2.argotunnel.com  PASS    DNS Resolved successfully     |
-2026-11-04T06:32:30Z INF |  DNS Resolution    region2.v2.argotunnel.com  PASS    DNS Resolved successfully     |
-2026-11-04T06:32:30Z INF |  UDP Connectivity  region1.v2.argotunnel.com  PASS    QUIC connection successful    |
-2026-11-04T06:32:30Z INF |  UDP Connectivity  region2.v2.argotunnel.com  PASS    QUIC connection successful    |
-2026-11-04T06:32:30Z INF |  TCP Connectivity  region1.v2.argotunnel.com  PASS    HTTP/2 connection successful  |
-2026-11-04T06:32:30Z INF |  TCP Connectivity  region2.v2.argotunnel.com  PASS    HTTP/2 connection successful  |
-2026-11-04T06:32:30Z INF |  Cloudflare API    api.cloudflare.com:443     PASS    API is reachable              |
-2026-11-04T06:32:30Z INF |                                                                                     |
-2026-11-04T06:32:30Z INF |  SUMMARY: Environment is healthy. cloudflared will use 'quic' as primary protocol.  |
-2026-11-04T06:32:30Z INF +-------------------------------------------------------------------------------------+
-2026-11-04T06:32:30Z INF precheck component="DNS Resolution" details="DNS Resolved successfully" run_id=41ed2eba-fd0c-4501-9a91-59d8eddc258b status=pass target=region1.v2.argotunnel.com
-2026-11-04T06:32:30Z INF precheck component="DNS Resolution" details="DNS Resolved successfully" run_id=41ed2eba-fd0c-4501-9a91-59d8eddc258b status=pass target=region2.v2.argotunnel.com
-2026-11-04T06:32:30Z INF precheck component="UDP Connectivity" details="QUIC connection successful" run_id=41ed2eba-fd0c-4501-9a91-59d8eddc258b status=pass target=region1.v2.argotunnel.com
-2026-11-04T06:32:30Z INF precheck component="UDP Connectivity" details="QUIC connection successful" run_id=41ed2eba-fd0c-4501-9a91-59d8eddc258b status=pass target=region2.v2.argotunnel.com
-2026-11-04T06:32:30Z INF precheck component="TCP Connectivity" details="HTTP/2 connection successful" run_id=41ed2eba-fd0c-4501-9a91-59d8eddc258b status=pass target=region1.v2.argotunnel.com
-2026-11-04T06:32:30Z INF precheck component="TCP Connectivity" details="HTTP/2 connection successful" run_id=41ed2eba-fd0c-4501-9a91-59d8eddc258b status=pass target=region2.v2.argotunnel.com
-2026-11-04T06:32:30Z INF precheck component="Cloudflare API" details="API is reachable" run_id=41ed2eba-fd0c-4501-9a91-59d8eddc258b status=pass target=api.cloudflare.com:443
-2026-11-04T06:32:30Z INF precheck complete hard_fail=false run_id=41ed2eba-fd0c-4501-9a91-59d8eddc258b suggested_protocol=quic
-2026-11-04T06:32:30Z INF Registered tunnel connection connIndex=0 connection=f4af183e-a9f0-4dd9-8791-b92b1bd9d45b event=0 ip=198.41.192.167 location=lax12 protocol=quic
+Astra installer - 2026-11-05T07:58:16.471Z
+[Astra] Using Java 21 from C:\Program Files\Java\jdk-21
+[Astra] Note: the installer will point players at http://localhost:8787, which only works on this PC. Set up a permanent address (Set Up DuckDNS.bat) before giving it to players.
+[Astra] Building the Minecraft client (this takes a while the first time)...
+Starting a Gradle Daemon (subsequent builds will be faster)
+2026-11-05T07:58:18Z INF +--------------------------------------------------------------------------------------------+
+2026-11-05T07:58:18Z INF |  Your quick Tunnel has been created! Visit it at (it may take some time to be reachable):  |
+2026-11-05T07:58:18Z INF |  https://ordinance-outputs-hereby-requirements.trycloudflare.com                           |
+2026-11-05T07:58:18Z INF +--------------------------------------------------------------------------------------------+
+2026-11-05T07:58:18Z INF Cannot determine default configuration path. No file [config.yml config.yaml] in [~/.cloudflared ~/.cloudflare-warp ~/cloudflare-warp]
+2026-11-05T07:58:18Z INF Version 2026.10.5 (Checksum db4e4c413612a0916f3e1679d3caaf376f94911952d163028fb726fb2e0516a9)
+2026-11-05T07:58:18Z INF GOOS: windows, GOVersion: go1.27.3, GoArch: amd64
+2026-11-05T07:58:18Z INF Settings: map[ha-connections:1 no-autoupdate:true protocol:quic url:http://localhost:8787]
+2026-11-05T07:58:18Z INF cloudflared will not automatically update on Windows systems.
+2026-11-05T07:58:18Z INF Generated Connector ID: 67b4aff8-6d27-4910-b294-a5a8c2206a3b
+2026-11-05T07:58:18Z INF Initial protocol quic
+2026-11-05T07:58:18Z INF ICMP proxy will use 192.168.0.243 as source for IPv4
+2026-11-05T07:58:18Z INF ICMP proxy will use 2620:9b::1925:1aa4 in zone Hamachi as source for IPv6
+2026-11-05T07:58:18Z INF cloudflared does not support loading the system root certificate pool on Windows. Please use --origin-ca-pool <PATH> to specify the path to the certificate pool
+2026-11-05T07:58:18Z INF ICMP proxy will use 192.168.0.243 as source for IPv4
+2026-11-05T07:58:18Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=0 event=0 ip=198.41.200.113
+2026-11-05T07:58:18Z INF ICMP proxy will use 2620:9b::1925:1aa4 in zone Hamachi as source for IPv6
+2026-11-05T07:58:18Z INF Starting metrics server on 127.0.0.1:20241/metrics
+[astra] Astra server running at https://ordinance-outputs-hereby-requirements.trycloudflare.com (port 8787)
+2026-11-05T07:58:18Z INF +-------------------------------------------------------------------------------------+
+2026-11-05T07:58:18Z INF |                               CONNECTIVITY PRE-CHECKS                               |
+2026-11-05T07:58:18Z INF +-------------------------------------------------------------------------------------+
+2026-11-05T07:58:18Z INF |  COMPONENT         TARGET                     STATUS  DETAILS                       |
+2026-11-05T07:58:18Z INF |  DNS Resolution    region1.v2.argotunnel.com  PASS    DNS Resolved successfully     |
+2026-11-05T07:58:18Z INF |  DNS Resolution    region2.v2.argotunnel.com  PASS    DNS Resolved successfully     |
+2026-11-05T07:58:18Z INF |  UDP Connectivity  region1.v2.argotunnel.com  PASS    QUIC connection successful    |
+2026-11-05T07:58:18Z INF |  UDP Connectivity  region2.v2.argotunnel.com  PASS    QUIC connection successful    |
+2026-11-05T07:58:18Z INF |  TCP Connectivity  region1.v2.argotunnel.com  PASS    HTTP/2 connection successful  |
+2026-11-05T07:58:18Z INF |  TCP Connectivity  region2.v2.argotunnel.com  PASS    HTTP/2 connection successful  |
+2026-11-05T07:58:18Z INF |  Cloudflare API    api.cloudflare.com:443     PASS    API is reachable              |
+2026-11-05T07:58:18Z INF |                                                                                     |
+2026-11-05T07:58:18Z INF |  SUMMARY: Environment is healthy. cloudflared will use 'quic' as primary protocol.  |
+2026-11-05T07:58:18Z INF +-------------------------------------------------------------------------------------+
+2026-11-05T07:58:18Z INF precheck component="DNS Resolution" details="DNS Resolved successfully" run_id=056ca869-d61d-4752-9064-b1e0ec4aaea2 status=pass target=region1.v2.argotunnel.com
+2026-11-05T07:58:18Z INF precheck component="DNS Resolution" details="DNS Resolved successfully" run_id=056ca869-d61d-4752-9064-b1e0ec4aaea2 status=pass target=region2.v2.argotunnel.com
+2026-11-05T07:58:18Z INF precheck component="UDP Connectivity" details="QUIC connection successful" run_id=056ca869-d61d-4752-9064-b1e0ec4aaea2 status=pass target=region1.v2.argotunnel.com
+2026-11-05T07:58:18Z INF precheck component="UDP Connectivity" details="QUIC connection successful" run_id=056ca869-d61d-4752-9064-b1e0ec4aaea2 status=pass target=region2.v2.argotunnel.com
+2026-11-05T07:58:18Z INF precheck component="TCP Connectivity" details="HTTP/2 connection successful" run_id=056ca869-d61d-4752-9064-b1e0ec4aaea2 status=pass target=region1.v2.argotunnel.com
+2026-11-05T07:58:18Z INF precheck component="TCP Connectivity" details="HTTP/2 connection successful" run_id=056ca869-d61d-4752-9064-b1e0ec4aaea2 status=pass target=region2.v2.argotunnel.com
+2026-11-05T07:58:18Z INF precheck component="Cloudflare API" details="API is reachable" run_id=056ca869-d61d-4752-9064-b1e0ec4aaea2 status=pass target=api.cloudflare.com:443
+2026-11-05T07:58:18Z INF precheck complete hard_fail=false run_id=056ca869-d61d-4752-9064-b1e0ec4aaea2 suggested_protocol=quic
 Astra is ONLINE at:
 
-    https://feelings-warranties-simulations-applicants.trycloudflare.com
+    https://ordinance-outputs-hereby-requirements.trycloudflare.com
 
 Players: install Astra, open Settings in the app and set
 "Astra server" to the address above (or use an installer
@@ -56,3 +56,91 @@ This is a TEST address: it changes every time you run this.
 For a permanent one run "Set Up Permanent Address.bat".
 
 Keep this window open. Close it (or Ctrl+C) to go offline.
+2026-11-05T07:58:19Z INF Registered tunnel connection connIndex=0 connection=fae44285-c288-4cc3-8c83-edfc80b54c2a event=0 ip=198.41.200.113 location=san01 protocol=quic
+
+> Configure project :versions:1.7.10
+Fabric Loom: 1.16.3
+Legacy Looming: 1.16.1
+
+> Configure project :versions:1.8.9
+Fabric Loom: 1.16.3
+Legacy Looming: 1.16.1
+
+warning: [options] source value 8 is obsolete and will be removed in a future release
+warning: [options] target value 8 is obsolete and will be removed in a future release
+warning: [options] To suppress warnings about obsolete options, use -Xlint:-options.
+> Task :versions:1.7.10:compileJava
+3 warnings
+
+> Task :versions:1.7.10:processResources
+> Task :versions:1.7.10:classes
+> Task :versions:1.7.10:jar
+> Task :versions:1.7.10:processIncludeJars UP-TO-DATE
+> Task :versions:1.7.10:compileTestJava NO-SOURCE
+> Task :versions:1.7.10:processTestResources NO-SOURCE
+> Task :versions:1.7.10:testClasses UP-TO-DATE
+> Task :versions:1.7.10:test NO-SOURCE
+> Task :versions:1.7.10:validateAccessWidener NO-SOURCE
+> Task :versions:1.7.10:check UP-TO-DATE
+
+warning: [options] source value 8 is obsolete and will be removed in a future release
+warning: [options] target value 8 is obsolete and will be removed in a future release
+warning: [options] To suppress warnings about obsolete options, use -Xlint:-options.
+> Task :versions:1.8.9:compileJava
+3 warnings
+
+> Task :versions:1.8.9:processResources
+> Task :versions:1.8.9:classes
+> Task :versions:1.8.9:jar
+> Task :versions:1.8.9:processIncludeJars UP-TO-DATE
+> Task :versions:1.8.9:compileTestJava NO-SOURCE
+> Task :versions:1.8.9:processTestResources NO-SOURCE
+> Task :versions:1.8.9:testClasses UP-TO-DATE
+> Task :versions:1.8.9:test NO-SOURCE
+> Task :versions:1.8.9:validateAccessWidener NO-SOURCE
+> Task :versions:1.8.9:check UP-TO-DATE
+> Task :versions:1.7.10:remapJar
+> Task :versions:1.7.10:remapSourcesJar SKIPPED
+> Task :versions:1.7.10:assemble
+> Task :versions:1.7.10:build
+> Task :versions:1.8.9:remapJar
+> Task :versions:1.8.9:remapSourcesJar SKIPPED
+> Task :versions:1.8.9:assemble
+> Task :versions:1.8.9:build
+
+[Incubating] Problems report is available at: file:///C:/Users/ramiz/Documents/GitHub/Astra---Minecraft-Client/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.4.0/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 19s
+10 actionable tasks: 8 executed, 2 up-to-date
+[Astra] Client built.
+[Astra] Players' launchers will pick up this build (1.7.10, 1.8.9) on their next launch.
+[Astra] Note: the installer will point players at http://localhost:8787, which only works on this PC. Set up a permanent address (Set Up DuckDNS.bat) before giving it to players.
+[Astra] Packing the Windows installer...
+
+> astra-launcher@1.0.1 dist
+> node scripts/copy-mods.js && electron-builder --win --config electron-builder.config.js --publish never
+
+✓ 1.7.10: astra-1.0.0+1.7.10.jar
+✓ 1.8.9: astra-1.0.0+1.8.9.jar
+  • electron-builder  version=25.1.8 os=10.0.19045
+[astra] Code signing: off (no signing secrets set). Windows will show a SmartScreen warning.
+  • loaded configuration  file=C:\Users\ramiz\Documents\GitHub\Astra---Minecraft-Client\launcher\electron-builder.config.js
+  • executing @electron/rebuild  electronVersion=33.4.11 arch=x64 buildFromSource=false appDir=./
+  • installing native dependencies  arch=x64
+  • completed installing native dependencies
+  • packaging       platform=win32 arch=x64 electron=33.4.11 appOutDir=dist\win-unpacked
+  • updating asar integrity executable resource  executablePath=dist\win-unpacked\Astra Launcher.exe
+  • building        target=nsis file=dist\Astra-Launcher-Setup.exe archs=x64 oneClick=false perMachine=false
+  • signing with signtool.exe  path=dist\__uninstaller-nsis-astra-launcher.exe
+  • no signing info identified, signing is skipped  signHook=false cscInfo=null
+  • signing with signtool.exe  path=dist\Astra-Launcher-Setup.exe
+  • no signing info identified, signing is skipped  signHook=false cscInfo=null
+  • building block map  blockMapFile=dist\Astra-Launcher-Setup.exe.blockmap
+[Astra] Done. The installer is in C:\Users\ramiz\Documents\GitHub\Astra---Minecraft-Client\launcher\dist
+[Astra] The website's Download button now serves Astra-Launcher-Setup.exe (http://localhost:8787/download/Astra-Setup.exe).
