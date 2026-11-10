@@ -544,4 +544,9 @@ public final class PlatformImpl extends dev.astra.client.platform.legacy.LegacyP
     public void swingIfUsingAndAttacking() {
         // 1.7.10 already swings while using items.
     }
+
+    @Override
+    public void tickPerformance() {
+        Perf.tick();
+    }
 }

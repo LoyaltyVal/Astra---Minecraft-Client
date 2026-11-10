@@ -19,3 +19,6 @@ astra-last-run.log
 # hosting
 tools/bin/
 server/downloads/
+
+# release workflow
+release-mods/

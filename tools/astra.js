@@ -7,7 +7,8 @@
  *   node tools/astra.js            set up if needed, build, start the server, open the app
  *   node tools/astra.js build      build the Minecraft client jars only
  *   node tools/astra.js server     start the server only (in this window)
- *   node tools/astra.js installer  build a Windows installer for players (launcher/dist)
+ *   node tools/astra.js installer  build the launcher for players on this OS (Windows installer,
+ *                                  Mac .dmg/.zip or Linux AppImage, in launcher/dist)
  *   node tools/astra.js host       put the server online through Cloudflare Tunnel (free HTTPS)
  *   node tools/astra.js address    one-time setup of a permanent address on your own domain
  *   node tools/astra.js duckdns    one-time setup of a free yourname.duckdns.org address
@@ -22,6 +23,16 @@ const ROOT = path.join(__dirname, '..');
 const SERVER = path.join(ROOT, 'server');
 const LAUNCHER = path.join(ROOT, 'launcher');
 const WIN = process.platform === 'win32';
+const MAC = process.platform === 'darwin';
+
+/**
+ * How to run Gradle. On macOS and Linux it's `sh gradlew`, not `./gradlew`: a project checked out
+ * from Windows (or GitHub Desktop) loses gradlew's "executable" flag, and ./gradlew then fails
+ * with "permission denied".
+ */
+function gradle(args) {
+  return WIN ? ['gradlew.bat', args] : ['sh', ['gradlew', ...args]];
+}
 
 // Everything printed is also saved to astra-last-run.log (handy when asking for help).
 const LOG = path.join(ROOT, 'astra-last-run.log');
@@ -100,7 +111,32 @@ function findJdk() {
       }
     }
   } else {
-    roots.push({ dir: '/usr/lib/jvm' }, { dir: '/Library/Java/JavaVirtualMachines' });
+    roots.push({ dir: '/usr/lib/jvm' }, { dir: '/usr/java' }, { dir: '/opt' }, { dir: '/Library/Java/JavaVirtualMachines' },
+      { dir: path.join(home, 'Library', 'Java', 'JavaVirtualMachines') }, { dir: path.join(home, '.sdkman', 'candidates', 'java') });
+    // Homebrew: /opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home (Intel: /usr/local/opt/...)
+    for (const brew of ['/opt/homebrew/opt', '/usr/local/opt', '/home/linuxbrew/.linuxbrew/opt']) {
+      try {
+        for (const n of fs.readdirSync(brew).filter((x) => /^openjdk/.test(x))) {
+          roots.push({ dir: path.join(brew, n, 'libexec', 'openjdk.jdk', 'Contents', 'Home'), single: true });
+          roots.push({ dir: path.join(brew, n), single: true });
+        }
+      } catch {
+        // no Homebrew here
+      }
+    }
+    if (MAC) {
+      const r = spawnSync('/usr/libexec/java_home', ['-v', '21+'], { encoding: 'utf8' });
+      if (r.status === 0 && r.stdout.trim()) roots.push({ dir: r.stdout.trim(), single: true });
+    }
+  }
+  // Whatever javac is on PATH (its real folder, through symlinks like /usr/bin/javac).
+  const which = spawnSync(WIN ? 'where' : 'which', ['javac'], { encoding: 'utf8' });
+  if (which.status === 0 && which.stdout.trim()) {
+    try {
+      roots.push({ dir: path.dirname(path.dirname(fs.realpathSync(which.stdout.trim().split(/\r?\n/)[0]))), single: true });
+    } catch {
+      // ignore
+    }
   }
   const found = [];
   for (const { dir, single } of roots) {
@@ -127,7 +163,11 @@ function checkTools() {
   if (major < 20) fail(`Node.js 20 or newer is needed (you have ${process.versions.node}). Get it from https://nodejs.org`);
   const jdk = findJdk();
   if (!jdk) {
-    fail('Building Astra needs Java 21 (a JDK). Install it from https://adoptium.net (choose JDK 21), then run this again.');
+    fail(MAC
+      ? 'Building Astra needs Java 21 (a JDK). Install it from https://adoptium.net (choose JDK 21, macOS .pkg) or run: brew install openjdk@21'
+      : WIN
+        ? 'Building Astra needs Java 21 (a JDK). Install it from https://adoptium.net (choose JDK 21), then run this again.'
+        : 'Building Astra needs Java 21 (a JDK). Install it with your package manager (e.g. sudo apt install openjdk-21-jdk) or from https://adoptium.net');
   }
   say(`Using Java ${jdk.version} from ${jdk.home}`);
   gradleEnv = { ...process.env, JAVA_HOME: jdk.home, PATH: `${path.join(jdk.home, 'bin')}${path.delimiter}${process.env.PATH}` };
@@ -157,7 +197,7 @@ async function setupServerConfig() {
 }
 
 async function build() {
-  await run(WIN ? 'gradlew.bat' : './gradlew', ['build', '--console=plain'], ROOT, 'Building the Minecraft client (this takes a while the first time)...', gradleEnv);
+  await run(...gradle(['build', '--console=plain']), ROOT, 'Building the Minecraft client (this takes a while the first time)...', gradleEnv);
   say('Client built.');
   publishMods();
 }
@@ -244,14 +284,14 @@ function installerAddress() {
   const cfg = serverConfig();
   const serverUrl = cfg && cfg.publicUrl ? cfg.publicUrl : 'http://localhost:8787';
   if (/\.trycloudflare\.com/i.test(serverUrl)) {
-    // A quick-tunnel address dies the next time hosting restarts; every installer built with it
-    // would point players at a dead server for good.
-    fail([
-      `server/config.json "publicUrl" is a temporary address (${serverUrl}).`,
-      'It changes every time hosting restarts, so installers built with it stop working.',
-      'Set up a permanent address first: run "Set Up DuckDNS.bat" (free) or',
-      '"Set Up Permanent Address.bat" (your own domain), then build the installer again.'
+    // A quick-tunnel address dies the next time hosting restarts, so it isn't put in the launcher.
+    // Astra itself still updates from GitHub; players type the current address in Settings.
+    say([
+      `Note: server/config.json "publicUrl" is a temporary address (${serverUrl}), so it isn't put in the launcher.`,
+      'Players type the current address in Settings (Astra updates come from GitHub either way).',
+      'For a permanent one run "Set Up DuckDNS.bat" (free) or "Set Up Permanent Address.bat".'
     ].join('\n'));
+    return '';
   }
   if (/localhost|127\.0\.0\.1/.test(serverUrl)) {
     say(`Note: the installer will point players at ${serverUrl}, which only works on this PC. Set up a permanent address (Set Up DuckDNS.bat) before giving it to players.`);
@@ -261,28 +301,45 @@ function installerAddress() {
 
 async function installer() {
   const serverUrl = installerAddress();
-  fs.writeFileSync(path.join(LAUNCHER, 'build-config.json'), JSON.stringify({ serverUrl }, null, 2) + '\n');
+  const configFile = path.join(LAUNCHER, 'build-config.json');
+  if (serverUrl) fs.writeFileSync(configFile, JSON.stringify({ serverUrl }, null, 2) + '\n');
+  else fs.rmSync(configFile, { force: true });
   await prepareWinCodeSign();
-  await run('npm', ['run', 'dist'], LAUNCHER, 'Packing the Windows installer...');
-  say(`Done. The installer is in ${path.join(LAUNCHER, 'dist')}`);
-  // Copy it next to the server so the website's Download button serves it.
+  const [script, what] = WIN ? ['dist', 'the Windows installer']
+    : MAC ? ['dist:mac', 'the Mac app (.dmg and .zip, Intel and Apple Silicon)'] : ['dist:linux', 'the Linux AppImage'];
+  await run('npm', ['run', script], LAUNCHER, `Packing ${what}...`);
   const dist = path.join(LAUNCHER, 'dist');
-  const exes = fs.readdirSync(dist).filter((f) => /\.exe$/i.test(f) && !/uninstall/i.test(f))
-    .map((f) => ({ f, t: fs.statSync(path.join(dist, f)).mtimeMs })).sort((a, b) => b.t - a.t);
-  if (exes.length) {
-    fs.mkdirSync(path.join(SERVER, 'downloads'), { recursive: true });
-    const target = path.join(SERVER, 'downloads', 'Astra-Setup.exe');
-    fs.copyFileSync(path.join(dist, exes[0].f), target);
+  say(`Done. It's in ${dist}`);
+
+  // Copy it next to the server so the website's Download buttons serve it.
+  const newest = (re) => fs.readdirSync(dist).filter((f) => re.test(f) && !/uninstall|blockmap/i.test(f))
+    .map((f) => ({ f, t: fs.statSync(path.join(dist, f)).mtimeMs })).sort((a, b) => b.t - a.t)[0];
+  const downloads = path.join(SERVER, 'downloads');
+  fs.mkdirSync(downloads, { recursive: true });
+  const copied = [];
+  const copy = (found, name) => {
+    if (!found) return;
+    fs.copyFileSync(path.join(dist, found.f), path.join(downloads, name));
+    if (!WIN) fs.chmodSync(path.join(downloads, name), 0o755);
+    copied.push(name);
+  };
+  if (WIN) copy(newest(/\.exe$/i), 'Astra-Setup.exe');
+  if (MAC) {
+    copy(newest(/mac-arm64\.zip$/i), 'Astra-Launcher-mac-arm64.zip');
+    copy(newest(/mac-x64\.zip$/i), 'Astra-Launcher-mac-x64.zip');
+  }
+  if (!WIN && !MAC) copy(newest(/\.AppImage$/i), 'Astra-Launcher.AppImage');
+  if (WIN && copied.length) {
     // What the website shows next to its Download button.
     const pkg = JSON.parse(fs.readFileSync(path.join(LAUNCHER, 'package.json'), 'utf8'));
-    fs.writeFileSync(path.join(SERVER, 'downloads', 'Astra-Setup.json'), JSON.stringify({
+    fs.writeFileSync(path.join(downloads, 'Astra-Setup.json'), JSON.stringify({
       version: pkg.version,
-      size: fs.statSync(target).size,
+      size: fs.statSync(path.join(downloads, 'Astra-Setup.exe')).size,
       builtAt: new Date().toISOString(),
       versions: fs.readdirSync(path.join(LAUNCHER, 'mods')).filter((v) => /^\d/.test(v))
     }, null, 2) + '\n');
-    say(`The website's Download button now serves ${exes[0].f} (${serverUrl}/download/Astra-Setup.exe).`);
   }
+  if (copied.length) say(`The website's Download buttons now serve ${copied.join(', ')}.`);
 }
 
 // ---------------------------------------------------------------- hosting (Cloudflare Tunnel)
@@ -695,7 +752,7 @@ async function prepare() {
   }
   // Configuring a version is what makes Loom download and remap that Minecraft; "tasks" just lists them.
   const tasks = versions.map((v) => `:versions:${v}:tasks`);
-  await run(WIN ? 'gradlew.bat' : './gradlew', ['-Pastra_prepare_versions=true', ...tasks, '--console=plain'], ROOT,
+  await run(...gradle(['-Pastra_prepare_versions=true', ...tasks, '--console=plain']), ROOT,
     `Downloading Minecraft ${versions.join(', ')} for porting (a few minutes each the first time)...`, gradleEnv);
   say(`Ready: ${versions.join(', ')}. Tell Claude, and the code for them can be written next.`);
 }
@@ -716,8 +773,7 @@ async function buildNew() {
   const built = [];
   const failed = [];
   for (const v of versions) {
-    const code = await run(WIN ? 'gradlew.bat' : './gradlew',
-      ['-Pastra_experimental_versions=true', `:versions:${v}:build`, '--console=plain'], ROOT,
+    const code = await run(...gradle(['-Pastra_experimental_versions=true', `:versions:${v}:build`, '--console=plain']), ROOT,
       `Building Astra for Minecraft ${v}...`, gradleEnv, true);
     (code === 0 ? built : failed).push(v);
   }

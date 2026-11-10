@@ -252,6 +252,24 @@ Double-click **`Start Astra.bat`** in the project folder. The first time, it ins
 
 The same commands work anywhere with `node tools/astra.js [start|server|build|installer|host|address|duckdns]`.
 
+### The quick way (macOS and Linux)
+
+Open Terminal in the project folder and run **`sh astra.sh`** for a menu, or name the step:
+
+| Command | Same as |
+|---|---|
+| `sh astra.sh start` | `Start Astra.bat` |
+| `sh astra.sh installer` | `Build Installer.bat`: on a Mac it makes the `.dmg` and `.zip` (Intel and Apple Silicon), on Linux the AppImage |
+| `sh astra.sh build-new` | `Build New Versions.bat` |
+| `sh astra.sh prepare` | `Prepare New Versions.bat` |
+| `sh astra.sh server` / `host` / `duckdns` | `Start Server Only.bat` / `Host Astra Online.bat` / `Set Up DuckDNS.bat` |
+
+Use `sh` in front (and `sh gradlew build` rather than `./gradlew build`): projects copied from Windows or GitHub Desktop lose the files' "executable" flag, and `sh` doesn't need it. You need Node.js 20+ and a Java 21 JDK (Mac: `brew install node openjdk@21`; Ubuntu: `sudo apt install nodejs openjdk-21-jdk`).
+
+### Releases and updates
+
+Every push to `main` that changes the client or the launcher makes a GitHub Release on its own (Windows, Mac and Linux are built on GitHub's machines). Installed launchers update themselves from it, and download the newest Astra mod from it before each launch. See [docs/RELEASING.md](docs/RELEASING.md).
+
 ### Prerequisites
 
 | Tool | Version | Used for |
@@ -265,8 +283,8 @@ The same commands work anywhere with `node tools/astra.js [start|server|build|in
 ```bash
 git clone https://github.com/LoyaltyVal/Astra---Minecraft-Client.git
 cd Astra---Minecraft-Client
-./gradlew build                        # jars: versions/<mc>/build/libs/astra-<version>+<mc>.jar
-./gradlew :versions:1.8.9:runClient    # dev client without the launcher
+sh gradlew build                       # jars: versions/<mc>/build/libs/astra-<version>+<mc>.jar
+sh gradlew :versions:1.8.9:runClient   # dev client without the launcher (Windows: gradlew.bat ...)
 ```
 
 In IntelliJ, open the folder and set **Settings → Build Tools → Gradle → Gradle JVM** to **Java 21**.

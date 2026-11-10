@@ -1,12 +1,16 @@
 # Builds Astra for Windows, macOS and Linux and publishes a GitHub Release. Installed launchers
-# update themselves from the newest release.
+# update themselves from the newest release, and download the newest Astra mod from it.
 #
-# To release: bump "version" in launcher/package.json (e.g. 1.0.1), commit, then push a matching tag:
-#   git tag v1.0.1 && git push origin v1.0.1
+# A release is made automatically every time you push to main (client and launcher changes only;
+# edits to docs, the website, the server or the .bat files don't make one). The version is the one in launcher/package.json
+# with the build number added, e.g. 1.0.1 -> 1.0.<1 + run number>, so every release is newer than
+# the last. To pick the version yourself, push a tag instead: git tag v1.2.0 && git push origin v1.2.0
+# (or run the workflow from the Actions tab).
 #
-# Settings → Secrets and variables → Actions:
-#   Variable ASTRA_SERVER_URL   your permanent Astra server address (required; baked into the launcher)
-#   Optional secrets, signing turns on when they're set (see launcher/electron-builder.config.js):
+# Settings → Secrets and variables → Actions (all optional):
+#   Variable ASTRA_SERVER_URL   a permanent Astra server address to put in the launcher. Leave it
+#                               unset while you only have a temporary (trycloudflare) address.
+#   Signing turns on when its secrets are set (see launcher/electron-builder.config.js):
 #     Windows, Azure Artifact Signing: AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET,
 #       ASTRA_AZURE_ENDPOINT, ASTRA_AZURE_ACCOUNT, ASTRA_AZURE_PROFILE, ASTRA_PUBLISHER_NAME
 #     Windows, .pfx: WIN_CSC_LINK, WIN_CSC_KEY_PASSWORD
@@ -15,34 +19,63 @@ name: Release
 
 on:
   push:
+    branches: [main]
     tags: ['v*']
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'website/**'
+      - 'server/**'
+      - 'tools/**'
+      - '*.bat'
+      - '*.command'
+      - '*.sh'
+      - 'LICENSE'
+      - '.gitignore'
   workflow_dispatch:
 
 permissions:
   contents: write
+
+# One release at a time; a newer push waits for the one being built.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   check:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.v.outputs.version }}
+      tag: ${{ steps.v.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
       - id: v
-        name: Tag matches the launcher version
+        name: Work out the version
         run: |
-          VERSION=$(node -p "require('./launcher/package.json').version")
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "v$VERSION" ]; then
-            echo "::error::Tag ${GITHUB_REF_NAME} doesn't match launcher/package.json version $VERSION (expected v$VERSION)."
-            exit 1
+          BASE=$(node -p "require('./launcher/package.json').version")
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+            if ! echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "::error::Tag ${GITHUB_REF_NAME} isn't a version like v1.2.0."; exit 1
+            fi
+          else
+            MAJOR_MINOR="${BASE%.*}"
+            PATCH="${BASE##*.}"
+            VERSION="${MAJOR_MINOR}.$((PATCH + GITHUB_RUN_NUMBER))"
           fi
-      - name: Server address is set and permanent
+          echo "Releasing Astra $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Server address (optional)
         env:
           URL: ${{ vars.ASTRA_SERVER_URL }}
         run: |
-          if [ -z "$URL" ]; then echo "::error::Set the ASTRA_SERVER_URL variable (Settings → Secrets and variables → Actions → Variables)."; exit 1; fi
-          case "$URL" in *trycloudflare.com*) echo "::error::ASTRA_SERVER_URL is a temporary quick-tunnel address; set up a permanent one first."; exit 1;; esac
+          case "$URL" in
+            "") echo "::notice::No ASTRA_SERVER_URL set: players type their Astra server address in Settings.";;
+            *trycloudflare.com*) echo "::warning::ASTRA_SERVER_URL is a temporary quick-tunnel address, so it isn't put in the launcher.";;
+            *) echo "Launcher will use $URL";;
+          esac
 
   mods:
     needs: check
@@ -54,12 +87,35 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
-      - name: Build Astra for every Minecraft version
-        run: bash ./gradlew build --no-daemon
+      - name: Build Astra (1.8.9, 1.7.10 and every finished version)
+        run: sh ./gradlew build --no-daemon --console=plain
+      - name: Build the versions still being ported (each one may fail without stopping the release)
+        run: |
+          for props in versions/*/gradle.properties; do
+            v=$(basename "$(dirname "$props")")
+            grep -q '^astra_experimental=true' "$props" || continue
+            if sh ./gradlew -Pastra_experimental_versions=true ":versions:$v:build" --no-daemon --console=plain; then
+              echo "::notice::Built Astra for $v"
+            else
+              echo "::warning::Astra for $v didn't build; this release doesn't include it."
+            fi
+          done
+      - name: List the builds for the launcher (astra-mods.json)
+        env:
+          TAG: ${{ needs.check.outputs.tag }}
+        run: |
+          MOD_VERSION=$(sed -n 's/^mod_version=//p' gradle.properties | tr -d '\r')
+          mkdir -p release-mods
+          node tools/github/release-mods.js "$MOD_VERSION" "$TAG"
       - uses: actions/upload-artifact@v4
         with:
           name: mods
           path: versions/*/build/libs/*.jar
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-mods
+          path: release-mods/
           if-no-files-found: error
 
   draft:
@@ -70,7 +126,7 @@ jobs:
       - name: Create the draft release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: v${{ needs.check.outputs.version }}
+          TAG: ${{ needs.check.outputs.tag }}
         run: |
           gh release view "$TAG" >/dev/null 2>&1 || \
             gh release create "$TAG" --draft --title "Astra $TAG" --generate-notes --target "$GITHUB_SHA"
@@ -97,12 +153,18 @@ jobs:
         with:
           name: mods
           path: versions
-      - name: Point the launcher at the Astra server
+      - name: Set the version and server address
         shell: bash
         env:
           URL: ${{ vars.ASTRA_SERVER_URL }}
+          VERSION: ${{ needs.check.outputs.version }}
+        working-directory: launcher
         run: |
-          node -e "require('fs').writeFileSync('launcher/build-config.json', JSON.stringify({ serverUrl: process.env.URL.replace(/\/+$/, '') }, null, 2) + '\n')"
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+          case "$URL" in
+            ""|*trycloudflare.com*) ;;
+            *) node -e "require('fs').writeFileSync('build-config.json', JSON.stringify({ serverUrl: process.env.URL.replace(/\/+$/, '') }, null, 2) + '\n')";;
+          esac
       - name: Install
         working-directory: launcher
         run: npm install --no-audit --no-fund
@@ -123,6 +185,7 @@ jobs:
           WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
           CSC_LINK: ${{ matrix.os == 'macos-latest' && secrets.MAC_CSC_LINK || '' }}
           CSC_KEY_PASSWORD: ${{ matrix.os == 'macos-latest' && secrets.MAC_CSC_KEY_PASSWORD || '' }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ matrix.os == 'macos-latest' && secrets.MAC_CSC_LINK && 'true' || 'false' }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -135,7 +198,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Publish the release (launchers start updating now)
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-mods
+          path: release-mods
+      - name: Add the Astra mods and publish the release (launchers start updating now)
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release edit "v${{ needs.check.outputs.version }}" --draft=false --latest
+          TAG: ${{ needs.check.outputs.tag }}
+        run: |
+          gh release upload "$TAG" release-mods/* --clobber
+          gh release edit "$TAG" --draft=false --latest

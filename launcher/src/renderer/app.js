@@ -851,6 +851,10 @@ function bindSettings(settings) {
   discordStatus.checked = settings.discordStatus;
   discordStatus.addEventListener('change', () => astra.saveSettings({ discordStatus: discordStatus.checked }));
 
+  const sodium = $('sodium');
+  sodium.checked = settings.sodium !== false;
+  sodium.addEventListener('change', () => astra.saveSettings({ sodium: sodium.checked }));
+
   const server = $('server-url');
   server.value = settings.serverUrl;
   server.addEventListener('change', async () => {

@@ -5,6 +5,7 @@
 // (gradle.properties), so an old build lying around can never end up in the installer.
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const projectDir = path.join(__dirname, '..', '..');
 const outDir = path.join(__dirname, '..', 'mods');
@@ -25,6 +26,9 @@ const versions = fs
 fs.rmSync(outDir, { recursive: true, force: true });
 
 let copied = 0;
+// When each jar was built and its sha1, so the launcher can tell whether a GitHub release has a newer one.
+const built = {};
+const sha1 = {};
 const missing = [];
 for (const mc of versions) {
   const jar = path.join(projectDir, 'versions', mc, 'build', 'libs', `astra-${modVersion}+${mc}.jar`);
@@ -41,6 +45,8 @@ for (const mc of versions) {
   }
   fs.mkdirSync(path.join(outDir, mc), { recursive: true });
   fs.copyFileSync(jar, path.join(outDir, mc, 'astra.jar'));
+  built[mc] = Math.round(fs.statSync(jar).mtimeMs);
+  sha1[mc] = crypto.createHash('sha1').update(fs.readFileSync(jar)).digest('hex');
   console.log(`✓ ${mc}: ${path.basename(jar)}`);
   copied++;
 }
@@ -53,3 +59,5 @@ if (!copied) {
   console.error('No Astra jars found; the installer would launch without the mod.');
   process.exit(1);
 }
+
+fs.writeFileSync(path.join(outDir, 'astra-build.json'), JSON.stringify({ built, sha1 }, null, 2) + '\n');

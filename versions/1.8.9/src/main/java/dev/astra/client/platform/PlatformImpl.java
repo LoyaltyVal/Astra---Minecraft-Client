@@ -552,4 +552,9 @@ public final class PlatformImpl extends dev.astra.client.platform.legacy.LegacyP
             p.handSwinging = true;
         }
     }
+
+    @Override
+    public void tickPerformance() {
+        Perf.tick();
+    }
 }

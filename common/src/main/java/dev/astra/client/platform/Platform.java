@@ -261,4 +261,8 @@ public interface Platform {
     float getSensitivity();
 
     void setSensitivity(float sensitivity);
+
+    /** Called every tick while Performance is on, for the engine optimizations (1.8.9 / 1.7.10). */
+    default void tickPerformance() {
+    }
 }

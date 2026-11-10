@@ -4,6 +4,13 @@
   "package": "dev.astra.client.mixin",
   "compatibilityLevel": "JAVA_8",
   "client": [
+    "perf.EntityCullingMixin",
+    "perf.BlockEntityCullingMixin",
+    "perf.SignTextMixin",
+    "perf.ParticleCullingMixin",
+    "perf.GlErrorMixin",
+    "perf.TextWidthCacheMixin",
+    "perf.TextureAnimationMixin",
     "MultiplayerScreenMixin",
     "EquipmentSlotFixMixin",
     "TabListMixin",

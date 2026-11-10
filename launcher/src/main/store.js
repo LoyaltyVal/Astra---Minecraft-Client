@@ -18,7 +18,8 @@ const DEFAULTS = {
   lastVersion: '1.8.9',
   serverUrl: buildConfig().serverUrl || 'http://localhost:8787',
   shareMinecraft: true,
-  discordStatus: true
+  discordStatus: true,
+  sodium: true
 };
 
 function file() {
@@ -48,6 +49,7 @@ function set(patch) {
   next.hideOnLaunch = Boolean(next.hideOnLaunch);
   next.shareMinecraft = Boolean(next.shareMinecraft);
   next.discordStatus = Boolean(next.discordStatus);
+  next.sodium = Boolean(next.sodium);
   next.serverUrl = String(next.serverUrl || '').trim().replace(/\/+$/, '');
   if (next.serverUrl && !/^https?:\/\/[^\s/]+/.test(next.serverUrl)) {
     throw new Error('The Astra server address must start with http:// or https://');

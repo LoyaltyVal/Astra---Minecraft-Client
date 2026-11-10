@@ -75,6 +75,12 @@ public final class ReplayModule extends Module {
         forwardWas = forward;
     }
 
+    /** Turning Replay off ends the recording in progress and saves it. */
+    @Override
+    protected void onDisable() {
+        Replay.get().stopRecordingFromToggle();
+    }
+
     @Override
     public void onShutdown() {
         Replay.get().finishNow();

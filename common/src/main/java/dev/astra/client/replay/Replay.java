@@ -159,6 +159,30 @@ public final class Replay {
         t.start();
     }
 
+    /**
+     * The Replay mod was turned off: save what's been recorded so far and say so. A new recording
+     * starts the next time you join a world with it on (a replay needs the world from the start).
+     */
+    public void stopRecordingFromToggle() {
+        final ReplayFile.Writer w = writer;
+        writer = null;
+        recordingConnection = null;
+        if (w == null) {
+            return;
+        }
+        Thread t = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                int length = w.now();
+                w.finish();
+                cleanUp();
+                Notifications.push("Replay saved", "Recorded " + clock(length) + ". Right Shift → Replays to watch it", Theme.accent());
+            }
+        }, "Astra replay finish");
+        t.setDaemon(true);
+        t.start();
+    }
+
     /** Finishes the recording right away (the game is closing, so there's no time for a thread). */
     public void finishNow() {
         ReplayFile.Writer w = writer;

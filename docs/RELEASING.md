@@ -1,27 +1,38 @@
 # Releasing Astra
 
 Releases are built on GitHub's machines for Windows, macOS and Linux. Installed launchers update
-themselves from the newest release.
+themselves from the newest release, and before every launch they download the newest Astra mod
+from it too (so Macs, which can't install launcher updates by themselves, still get every Astra fix).
 
 ## One-time setup
 
 1. **Workflow:** double-click `Set Up GitHub Releases.bat` (it copies `tools/github/release.yml` into
-   `.github/workflows/`), then commit and push it.
+   `.github/workflows/`), then commit and push it. Do this again whenever `tools/github/release.yml`
+   changes. (Mac/Linux: `mkdir -p .github/workflows && cp tools/github/release.yml .github/workflows/`.)
 2. **Repo access:** players' launchers read releases without signing in, so the repo has to be
    **public**. If you want the code private, make a second, public repo just for releases, and put
    its name in `launcher/package.json` → `astraUpdates`.
-3. **Server address:** GitHub repo → Settings → Secrets and variables → Actions → **Variables** →
-   add `ASTRA_SERVER_URL` = your permanent address (e.g. `https://yourname.duckdns.org`).
+3. **Server address (optional):** GitHub repo → Settings → Secrets and variables → Actions →
+   **Variables** → add `ASTRA_SERVER_URL` = your permanent address (e.g. `https://yourname.duckdns.org`).
+   Without it (or while you only have a temporary trycloudflare address), players type the address
+   in the launcher's Settings; updates come from GitHub either way.
 4. **Website downloads:** in `server/config.json` set `"releasesRepo": "LoyaltyVal/Astra---Minecraft-Client"`.
    The site then offers Windows, macOS and Linux downloads and picks the visitor's OS.
 
 ## Every release
 
-1. Bump `"version"` in `launcher/package.json` (e.g. `1.0.1`) and commit.
-2. Tag and push: `git tag v1.0.1` then `git push origin v1.0.1`
-   (GitHub Desktop: Repository → Create tag, then Push).
-3. Watch the **Actions** tab (about 15 minutes). When it's green, the release is public and
-   launchers start updating.
+Nothing to do: **push to `main`** (GitHub Desktop: Commit, then Push origin). Every push that changes
+the client or the launcher makes a release by itself. Pushes that only change docs, the website,
+the server or the `.bat` files don't.
+
+- The version is `launcher/package.json`'s plus the build number (1.0.1 → 1.0.2, 1.0.3, ...), so each
+  release is newer than the last. To jump to a new version yourself, push a tag like `v1.2.0`
+  (GitHub Desktop: Repository → Create tag, then Push), or raise the version in `package.json`.
+- You can also start one by hand: **Actions → Release → Run workflow**.
+- It takes about 15-20 minutes (watch the **Actions** tab). When it's green, the release is public
+  and launchers start updating.
+- Versions still being ported (1.20.4, 1.21.x) are built too when they can be; one that doesn't
+  build yet shows a warning and is left out, without stopping the release.
 
 ## Code signing (optional, removes warnings over time)
 
@@ -41,6 +52,12 @@ Keep signing with the same identity so that reputation carries over between vers
 
 - **Windows:** players click *More info → Run anyway* once. Updates still install automatically.
 - **macOS:** players open it via *System Settings → Privacy & Security → Open Anyway* once.
-  Unsigned Macs can't install updates themselves; the launcher shows "Astra x.y.z is out →
-  Download" instead.
+  Unsigned Macs can't install launcher updates themselves; the launcher shows "Astra x.y.z is out →
+  Download" instead. The Astra mod itself still updates on every launch.
 - **Linux (AppImage):** no signing needed. Updates install automatically.
+
+## Building on your own Mac or Linux PC
+
+`sh astra.sh installer` builds the launcher for the OS you're on (Mac: `.dmg` + `.zip` for Intel
+and Apple Silicon; Linux: AppImage) into `launcher/dist`, and copies it to `server/downloads` for
+the website. A Mac build can only be made on a Mac; GitHub's release builds all three.

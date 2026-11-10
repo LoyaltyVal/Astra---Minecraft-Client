@@ -7,7 +7,7 @@ const paths = require('./paths');
 const { getVersion } = require('./config');
 const { ensureJava, javaComponentFor } = require('./java');
 const { ensureLoader } = require('./fabric');
-const { installMod, ensureFabricApi } = require('./mods');
+const { installMod, ensureFabricApi, ensureSodium } = require('./mods');
 const astraServer = require('./astraServer');
 const shared = require('./shared');
 const { DiscordPresence } = require('./discord');
@@ -88,8 +88,24 @@ async function launchGame(versionId, ui) {
   step('installing Astra');
   ui.progress({ label: 'Checking for Astra updates', current: 0, total: 1 });
   const withAstra = (await installMod(version.id, ui.log)) !== false;
-  // Fabric API is only there for Astra; a version without Astra yet launches on plain Fabric.
-  if (version.fabricApi && withAstra) await ensureFabricApi(version.id, ui.progress, ui.log);
+  // Sodium (far higher FPS) and Astra both need Fabric API. A version with neither launches on plain
+  // Fabric; Sodium doesn't exist for 1.8.9 and older.
+  if (version.fabricApi) {
+    const wantSodium = settings.sodium !== false;
+    let haveFabricApi = false;
+    if (withAstra) {
+      await ensureFabricApi(version.id, ui.progress, ui.log);
+      haveFabricApi = true;
+    } else if (wantSodium) {
+      try {
+        await ensureFabricApi(version.id, ui.progress, ui.log);
+        haveFabricApi = true;
+      } catch (e) {
+        ui.log(`[Astra] ${e.message} Launching without Sodium.`);
+      }
+    }
+    await ensureSodium(version.id, wantSodium && haveFabricApi, ui.progress, ui.log);
+  }
 
   // Cosmetics server + your Astra session for the game. The token is kept out of the logs.
   ui.progress({ label: 'Connecting to Astra', current: 0, total: 1 });
